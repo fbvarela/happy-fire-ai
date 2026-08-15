@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
 
 import { LocationForm } from '../components/LocationForm'
+import { RiskSummary } from '../components/RiskSummary'
 import type { EnvironmentalContext } from '../domain/environment'
 import { calculateRisk } from '../domain/risk'
 
@@ -31,18 +32,18 @@ function Home() {
         <LocationForm onContext={setContext} />
       </section>
 
-      <section className="dashboard-grid" aria-label="Risk dashboard preview">
-        <article className="risk-card">
-          <div className="card-heading">
-            <span>Current risk</span>
-            <span className="muted-label">No location selected</span>
-          </div>
-          <div className="score-placeholder">{risk ? risk.score : '--'}</div>
-          <p className="muted-copy">
-            {risk ? `${risk.level} risk, ${risk.confidence}% confidence.` : 'Select a location to calculate a transparent score.'}
-          </p>
-          <div className="meter" aria-hidden="true"><span style={{ width: `${risk?.score ?? 0}%` }} /></div>
-        </article>
+      <section className="dashboard-grid" aria-label="Risk dashboard">
+        {risk && context ? <RiskSummary result={risk} context={context} /> : (
+          <article className="risk-card risk-empty" aria-live="polite">
+            <div className="card-heading">
+              <span>Current risk</span>
+              <span className="muted-label">No location selected</span>
+            </div>
+            <div className="score-placeholder">--</div>
+            <p className="muted-copy">Select a location to calculate a transparent score.</p>
+            <div className="meter" aria-hidden="true"><span /></div>
+          </article>
+        )}
 
         <article className="info-card">
           <p className="card-kicker">What we will measure</p>
