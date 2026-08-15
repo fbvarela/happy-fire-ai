@@ -47,7 +47,8 @@ function Home() {
 
       <footer className="safety-note">
         <strong>Informational estimate only.</strong> This product is not an
-        official warning, prediction, or evacuation order.
+        official warning, prediction, or evacuation order. During an active
+        emergency, follow local emergency services and official fire authorities.
       </footer>
     </main>
   )

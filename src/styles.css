@@ -38,7 +38,7 @@ h1 { max-width: 680px; margin: 18px 0; color: #f3f7ed; font-size: clamp(42px, 7v
 .score-placeholder { margin: 44px 0 6px; color: #c7f36b; font: 500 72px 'DM Mono', monospace; letter-spacing: -.08em; }
 .muted-copy { margin: 0; font-size: 14px; }
 .meter { height: 5px; margin-top: 32px; overflow: hidden; border-radius: 5px; background: #293a31; }
-.meter span { display: block; width: 25%; height: 100%; background: #c7f36b; }
+.meter span { display: block; width: 0; height: 100%; background: #c7f36b; }
 .card-kicker { margin: 0 0 34px; }
 .info-card ul { display: grid; gap: 18px; padding: 0; margin: 0; list-style: none; }
 .info-card li { display: flex; gap: 16px; align-items: center; color: #dce8dc; }
