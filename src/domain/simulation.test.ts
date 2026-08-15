@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
+import { describeSimulationAssumptions } from '../components/FireSimulation'
+import type { EnvironmentalContext } from './environment'
 import { stepSimulation, type SimulationGrid, type SimulationOptions } from './simulation'
 
 const calmDryConditions: SimulationOptions = {
@@ -46,5 +48,31 @@ describe('stepSimulation', () => {
       [0, 1, 0, 2],
       [0, 0, 0, 0],
     ])
+  })
+})
+
+describe('describeSimulationAssumptions', () => {
+  it('names only missing fields while retaining available values', () => {
+    const context: EnvironmentalContext = {
+      latitude: 40,
+      longitude: -3,
+      observedAt: '2026-08-15T12:00:00.000Z',
+      status: 'available',
+      weather: {
+        temperatureC: 30,
+        humidity: 40,
+        precipitationMm24h: 0,
+        windKph: 42,
+        windDirectionDeg: null,
+      },
+      terrain: { slopeDeg: 18, elevationM: 800 },
+      fuel: { vegetationDryness: null },
+      exposure: { nearbyPeople: 100 },
+      seasonWeatherProxy: 50,
+    }
+
+    expect(describeSimulationAssumptions(context)).toBe(
+      'Fallback assumptions: wind direction north, vegetation dryness 60.',
+    )
   })
 })

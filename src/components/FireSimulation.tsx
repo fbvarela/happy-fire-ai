@@ -22,18 +22,25 @@ const getOptions = (context: EnvironmentalContext | null): SimulationOptions => 
   vegetationDryness: context?.fuel.vegetationDryness ?? 60,
 })
 
+export const describeSimulationAssumptions = (context: EnvironmentalContext | null) => {
+  const missing = [
+    context?.weather.windDirectionDeg === null || !context ? 'wind direction north' : null,
+    context?.weather.windKph === null || !context ? 'wind speed 15 kph' : null,
+    context?.terrain.slopeDeg === null || !context ? 'slope 10°' : null,
+    context?.fuel.vegetationDryness === null || !context ? 'vegetation dryness 60' : null,
+  ].filter((value): value is string => value !== null)
+
+  return missing.length > 0
+    ? `Fallback assumptions: ${missing.join(', ')}.`
+    : `Using selected context: wind ${context.weather.windKph} kph, direction ${context.weather.windDirectionDeg}°, slope ${context.terrain.slopeDeg}°, dryness ${context.fuel.vegetationDryness}.`
+}
+
 export function FireSimulation({ context }: FireSimulationProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [grid, setGrid] = useState<SimulationGrid>(initialGrid)
   const [stepCount, setStepCount] = useState(0)
   const [running, setRunning] = useState(false)
   const options = getOptions(context)
-  const usingFallbacks = !context || [
-    context.weather.windDirectionDeg,
-    context.weather.windKph,
-    context.terrain.slopeDeg,
-    context.fuel.vegetationDryness,
-  ].some((value) => value === null)
 
   const advance = () => {
     setGrid((current) => stepSimulation(current, options))
@@ -93,9 +100,7 @@ export function FireSimulation({ context }: FireSimulationProps) {
         <button className="secondary-button" type="button" onClick={reset}>Reset</button>
       </div>
       <p className="simulation-assumptions">
-        {usingFallbacks
-          ? 'Fallback assumptions are active: wind 15 kph from north, slope 10°, vegetation dryness 60.'
-          : `Using selected context: wind ${options.windKph} kph, direction ${options.windDirectionDeg}°, slope ${options.slopeDeg}°, dryness ${options.vegetationDryness}.`}
+        {describeSimulationAssumptions(context)}
       </p>
     </section>
   )
