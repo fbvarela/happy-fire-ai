@@ -15,15 +15,12 @@ Build the production app with:
 npm run build
 ```
 
-## Deploy with Nitro
+## Deploy on Vercel
 
-This project uses Nitro as a generic server adapter, so it can run on any Node-compatible host.
+This project uses Nitro's Vercel preset. Import the repository into Vercel and use the default build settings; Vercel will run `npm run build` and publish Nitro's generated Vercel output.
 
 ```bash
 npm run build
-node .output/server/index.mjs
 ```
 
-The build output is a self-contained Node server in `.output/`. To deploy, publish that directory to a Node-compatible host and run the server command above.
-
-For host-specific presets (Vercel, Netlify, Cloudflare, AWS Lambda, etc.) and tuning, see https://v3.nitro.build/deploy.
+For local preview, run `npm run preview` after the build. Vercel deployment details are documented at https://nitro.build/deploy/providers/vercel.
