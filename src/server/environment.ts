@@ -11,14 +11,16 @@ type Coordinates = {
 const observedAt = '2026-01-01T00:00:00.000Z'
 const freshnessThresholdMs = 90 * 60 * 1000
 const isNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
-const isWeatherValue = (value: unknown): value is number | null => value === null || isNumber(value)
+const isHumidity = (value: unknown) => value === null || (isNumber(value) && value >= 0 && value <= 100)
+const isNonNegative = (value: unknown) => value === null || (isNumber(value) && value >= 0)
+const isWindDirection = (value: unknown) => value === null || (isNumber(value) && value >= 0 && value <= 360)
 const isWeatherResult = (value: unknown): value is Pick<EnvironmentalContext, 'weather'> => {
   if (!value || typeof value !== 'object' || !('weather' in value)) return false
   const weather = value.weather
   return !!weather && typeof weather === 'object' &&
-    isWeatherValue(weather.temperatureC) && isWeatherValue(weather.humidity) &&
-    isWeatherValue(weather.precipitationMm24h) && isWeatherValue(weather.windKph) &&
-    isWeatherValue(weather.windDirectionDeg)
+     (weather.temperatureC === null || isNumber(weather.temperatureC)) &&
+     isHumidity(weather.humidity) && isNonNegative(weather.precipitationMm24h) &&
+     isNonNegative(weather.windKph) && isWindDirection(weather.windDirectionDeg)
 }
 
 const validateCoordinates = (coordinates: Coordinates) => {
@@ -45,6 +47,7 @@ const getMockContext = (latitude: number, longitude: number): EnvironmentalConte
     longitude,
     observedAt,
     status: 'available',
+    source: 'mock',
     weather: {
       temperatureC: 18 + Math.round(latitudeSignal * 12),
       humidity: 35 + Math.round(longitudeSignal * 40),
@@ -85,9 +88,9 @@ export const getEnvironmentContext = async (
     const sourceTime = Date.parse(sourceTimestamp)
     if (Number.isNaN(sourceTime)) throw new Error('Invalid provider timestamp')
     const status = Date.now() - sourceTime > freshnessThresholdMs ? 'stale' : 'available'
-    return { ...fallback, ...result, observedAt: sourceTimestamp, status }
+    return { ...fallback, ...result, observedAt: sourceTimestamp, status, source: 'open-meteo' }
   } catch {
-    return fallback
+    return { ...fallback, status: 'error' }
   }
 }
 

@@ -1,10 +1,12 @@
-export type DataStatus = 'available' | 'missing' | 'stale'
+export type DataStatus = 'available' | 'missing' | 'stale' | 'error'
+export type DataSource = 'mock' | 'open-meteo'
 
 export type EnvironmentalContext = {
   latitude: number
   longitude: number
   observedAt: string
   status: DataStatus
+  source: DataSource
   weather: {
     temperatureC: number | null
     humidity: number | null

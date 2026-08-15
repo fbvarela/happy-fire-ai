@@ -10,6 +10,7 @@ const statusCopy = {
   available: 'Available',
   missing: 'Missing',
   stale: 'Stale',
+  error: 'Provider error',
 } as const
 
 export function RiskSummary({ result, context }: RiskSummaryProps) {
@@ -49,7 +50,14 @@ export function RiskSummary({ result, context }: RiskSummaryProps) {
       <dl className="summary-details">
         <div><dt>Model</dt><dd>{result.modelVersion}</dd></div>
         <div><dt>Observed</dt><dd>{observedAt}</dd></div>
+        <div><dt>Source</dt><dd>{context.source === 'mock' ? 'Mock data' : 'Open-Meteo'}</dd></div>
       </dl>
+
+      {context.status === 'error' && (
+        <p className="data-warning" role="status">
+          The weather provider failed, so mock fallback data is shown. Treat this estimate as unavailable until live data is restored.
+        </p>
+      )}
 
       <div className="factor-section">
         <div className="card-heading">

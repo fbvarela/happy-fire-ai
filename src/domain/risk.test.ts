@@ -7,6 +7,7 @@ const completeContext: EnvironmentalContext = {
   longitude: -3,
   observedAt: '2026-08-15T12:00:00.000Z',
   status: 'available',
+  source: 'mock',
   weather: {
     temperatureC: 30,
     humidity: 40,
@@ -80,5 +81,34 @@ describe('calculateRisk', () => {
 
     expect(result.confidence).toBe(0)
     expect(result.factors.every(({ status }) => status === 'stale')).toBe(true)
+  })
+
+  it('treats provider errors as unavailable data', () => {
+    const result = calculateRisk({ ...completeContext, status: 'error' })
+
+    expect(result.confidence).toBe(0)
+    expect(result.factors.every(({ status }) => status === 'error')).toBe(true)
+  })
+
+  it.each([
+    [24, 'low', { weather: { temperatureC: 0, humidity: 100, precipitationMm24h: 50, windKph: 0, windDirectionDeg: 0 }, terrain: { slopeDeg: 0, elevationM: null }, fuel: { vegetationDryness: 96 }, seasonWeatherProxy: 0, exposure: { nearbyPeople: 0 } }],
+    [25, 'moderate', { weather: { temperatureC: 0, humidity: 100, precipitationMm24h: 50, windKph: 0, windDirectionDeg: 0 }, terrain: { slopeDeg: 0, elevationM: null }, fuel: { vegetationDryness: 100 }, seasonWeatherProxy: 0, exposure: { nearbyPeople: 0 } }],
+    [49, 'moderate', { fuel: { vegetationDryness: 6 }, seasonWeatherProxy: 100, exposure: { nearbyPeople: 1000 } }],
+    [50, 'high', { fuel: { vegetationDryness: 10 }, seasonWeatherProxy: 100, exposure: { nearbyPeople: 1000 } }],
+    [74, 'high', { fuel: { vegetationDryness: 66 }, terrain: { slopeDeg: 45, elevationM: null }, seasonWeatherProxy: 100, exposure: { nearbyPeople: 1000 } }],
+    [75, 'extreme', { fuel: { vegetationDryness: 70 }, terrain: { slopeDeg: 45, elevationM: null }, seasonWeatherProxy: 100, exposure: { nearbyPeople: 1000 } }],
+  ] as const)('classifies score boundary %s as %s', (targetScore, level, overrides) => {
+    const result = calculateRisk({
+      ...completeContext,
+      weather: { temperatureC: null, humidity: null, precipitationMm24h: null, windKph: null, windDirectionDeg: null },
+      terrain: { slopeDeg: null, elevationM: null },
+      fuel: { vegetationDryness: null },
+      seasonWeatherProxy: null,
+      exposure: { nearbyPeople: null },
+      ...overrides,
+    })
+
+    expect(result.score).toBe(targetScore)
+    expect(result.level).toBe(level)
   })
 })

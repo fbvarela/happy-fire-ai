@@ -58,6 +58,7 @@ describe('describeSimulationAssumptions', () => {
       longitude: -3,
       observedAt: '2026-08-15T12:00:00.000Z',
       status: 'available',
+      source: 'mock',
       weather: {
         temperatureC: 30,
         humidity: 40,

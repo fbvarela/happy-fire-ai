@@ -18,6 +18,9 @@ type OpenMeteoResponse = {
 }
 
 const isNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
+const isHumidity = (value: unknown) => value === null || (isNumber(value) && value >= 0 && value <= 100)
+const isNonNegative = (value: unknown) => value === null || (isNumber(value) && value >= 0)
+const isWindDirection = (value: unknown) => value === null || (isNumber(value) && value >= 0 && value <= 360)
 const parseUtcTimestamp = (value: string) => {
   const date = new Date(value.endsWith('Z') ? value : `${value}Z`)
   return Number.isNaN(date.getTime()) ? undefined : date
@@ -50,11 +53,11 @@ export const createOpenMeteoWeatherProvider = (
       const hourlyPrecipitation = payload.hourly?.precipitation
       if (
         !current || typeof current.time !== 'string' || !isNumber(current.temperature_2m) ||
-        !isNumber(current.relative_humidity_2m) || !isNumber(current.wind_speed_10m) ||
-        !isNumber(current.wind_direction_10m) || !Array.isArray(hourlyTimes) ||
+        !isHumidity(current.relative_humidity_2m) || !isNonNegative(current.wind_speed_10m) ||
+        !isWindDirection(current.wind_direction_10m) || !Array.isArray(hourlyTimes) ||
         !Array.isArray(hourlyPrecipitation) || hourlyTimes.length !== hourlyPrecipitation.length ||
         !hourlyTimes.every((time): time is string => typeof time === 'string') ||
-        !hourlyPrecipitation.every(isNumber)
+        !hourlyPrecipitation.every(isNonNegative)
       ) {
         throw new Error('Invalid Open-Meteo response')
       }
