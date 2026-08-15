@@ -14,13 +14,18 @@ type OpenMeteoResponse = {
     wind_speed_10m?: unknown
     wind_direction_10m?: unknown
   }
-  daily?: { precipitation_sum?: unknown }
+  hourly?: { time?: unknown; precipitation?: unknown }
 }
 
 const isNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
+const parseUtcTimestamp = (value: string) => {
+  const date = new Date(value.endsWith('Z') ? value : `${value}Z`)
+  return Number.isNaN(date.getTime()) ? undefined : date
+}
 
 export const createOpenMeteoWeatherProvider = (
   fetcher: typeof fetch = fetch,
+  timeoutMs = 10_000,
 ): ProviderWithTimestamp => {
   const provider: ProviderWithTimestamp = {
     sourceTimestamp: undefined,
@@ -29,34 +34,47 @@ export const createOpenMeteoWeatherProvider = (
       url.search = new URLSearchParams({
         latitude: String(latitude),
         longitude: String(longitude),
-        current: 'temperature_2m,relative_humidity_2m,precipitation,wind_speed_10m,wind_direction_10m',
-        daily: 'precipitation_sum',
+        current: 'temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m',
+        hourly: 'precipitation',
+        past_hours: '24',
+        forecast_hours: '1',
         timezone: 'UTC',
       }).toString()
 
-      const response = await fetcher(url)
+      const response = await fetcher(url, { signal: AbortSignal.timeout(timeoutMs) })
       if (!response.ok) throw new Error(`Open-Meteo request failed (${response.status})`)
 
       const payload = await response.json() as OpenMeteoResponse
       const current = payload.current
-      const precipitation = payload.daily?.precipitation_sum
+      const hourlyTimes = payload.hourly?.time
+      const hourlyPrecipitation = payload.hourly?.precipitation
       if (
         !current || typeof current.time !== 'string' || !isNumber(current.temperature_2m) ||
-        !isNumber(current.relative_humidity_2m) || !isNumber(precipitation && Array.isArray(precipitation) ? precipitation[0] : undefined) ||
-        !isNumber(current.wind_speed_10m) || !isNumber(current.wind_direction_10m)
+        !isNumber(current.relative_humidity_2m) || !isNumber(current.wind_speed_10m) ||
+        !isNumber(current.wind_direction_10m) || !Array.isArray(hourlyTimes) ||
+        !Array.isArray(hourlyPrecipitation) || hourlyTimes.length !== hourlyPrecipitation.length ||
+        !hourlyTimes.every((time): time is string => typeof time === 'string') ||
+        !hourlyPrecipitation.every(isNumber)
       ) {
         throw new Error('Invalid Open-Meteo response')
       }
 
-      const parsedTimestamp = new Date(current.time.endsWith('Z') ? current.time : `${current.time}Z`)
-      if (Number.isNaN(parsedTimestamp.getTime())) throw new Error('Invalid Open-Meteo response')
+      const parsedTimestamp = parseUtcTimestamp(current.time)
+      if (!parsedTimestamp) throw new Error('Invalid Open-Meteo response')
+      const windowStart = parsedTimestamp.getTime() - 24 * 60 * 60 * 1000
+      const precipitationMm24h = hourlyTimes.reduce((total, time, index) => {
+        const hour = parseUtcTimestamp(time)
+        return hour && hour.getTime() > windowStart && hour.getTime() <= parsedTimestamp.getTime()
+          ? total + hourlyPrecipitation[index]
+          : total
+      }, 0)
       const sourceTimestamp = parsedTimestamp.toISOString()
       provider.sourceTimestamp = sourceTimestamp
       return {
         weather: {
           temperatureC: current.temperature_2m,
           humidity: current.relative_humidity_2m,
-          precipitationMm24h: precipitation[0],
+          precipitationMm24h,
           windKph: current.wind_speed_10m,
           windDirectionDeg: current.wind_direction_10m,
         },

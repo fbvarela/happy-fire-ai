@@ -10,6 +10,16 @@ type Coordinates = {
 
 const observedAt = '2026-01-01T00:00:00.000Z'
 const freshnessThresholdMs = 90 * 60 * 1000
+const isNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
+const isWeatherValue = (value: unknown): value is number | null => value === null || isNumber(value)
+const isWeatherResult = (value: unknown): value is Pick<EnvironmentalContext, 'weather'> => {
+  if (!value || typeof value !== 'object' || !('weather' in value)) return false
+  const weather = value.weather
+  return !!weather && typeof weather === 'object' &&
+    isWeatherValue(weather.temperatureC) && isWeatherValue(weather.humidity) &&
+    isWeatherValue(weather.precipitationMm24h) && isWeatherValue(weather.windKph) &&
+    isWeatherValue(weather.windDirectionDeg)
+}
 
 const validateCoordinates = (coordinates: Coordinates) => {
   if (
@@ -69,7 +79,8 @@ export const getEnvironmentContext = async (
   if (!weatherProvider) return fallback
 
   try {
-    const result = await weatherProvider.getWeather(latitude, longitude)
+    const result: unknown = await weatherProvider.getWeather(latitude, longitude)
+    if (!isWeatherResult(result)) throw new Error('Invalid provider weather')
     const sourceTimestamp = weatherProvider.sourceTimestamp ?? new Date().toISOString()
     const sourceTime = Date.parse(sourceTimestamp)
     if (Number.isNaN(sourceTime)) throw new Error('Invalid provider timestamp')

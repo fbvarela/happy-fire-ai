@@ -33,4 +33,4 @@ The server can use Open-Meteo without an API key or SDK:
 WEATHER_PROVIDER=open-meteo npm run dev
 ```
 
-Leave `WEATHER_PROVIDER` unset or set it to `mock` for deterministic offline development. Invalid, stale, or unavailable Open-Meteo responses fall back to the deterministic mock context. The provider timestamp is exposed as the context `observedAt` value; data older than 90 minutes is marked stale.
+Leave `WEATHER_PROVIDER` unset or set it to `mock` for deterministic offline development. Stale Open-Meteo data is surfaced as `stale`; unavailable provider errors fall back to the deterministic mock context. The provider timestamp is exposed as the context `observedAt` value; data older than 90 minutes is marked stale.

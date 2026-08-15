@@ -13,20 +13,25 @@ const weather: EnvironmentalContext['weather'] = {
 }
 
 describe('Open-Meteo weather provider', () => {
-  it('maps a valid current response into normalized weather', async () => {
-    const provider = createOpenMeteoWeatherProvider(async () => new Response(JSON.stringify({
+  it('maps rolling hourly precipitation into normalized weather', async () => {
+    const provider = createOpenMeteoWeatherProvider(async (input) => {
+      expect(new URL(input.toString()).searchParams.get('hourly')).toBe('precipitation')
+      return new Response(JSON.stringify({
       current: {
         time: '2026-08-15T12:00',
         temperature_2m: 22,
         relative_humidity_2m: 48,
-        precipitation: 1.2,
         wind_speed_10m: 14,
         wind_direction_10m: 210,
       },
-      daily: { precipitation_sum: [1.2] },
-    })))
+      hourly: {
+        time: ['2026-08-15T11:00', '2026-08-15T12:00'],
+        precipitation: [1.2, 2.3],
+      },
+    }))
+    })
 
-    await expect(provider.getWeather(40, -3)).resolves.toEqual({ weather })
+    await expect(provider.getWeather(40, -3)).resolves.toEqual({ weather: { ...weather, precipitationMm24h: 3.5 } })
     expect(provider.sourceTimestamp).toBe('2026-08-15T12:00:00.000Z')
   })
 
@@ -34,6 +39,14 @@ describe('Open-Meteo weather provider', () => {
     const provider = createOpenMeteoWeatherProvider(async () => new Response(JSON.stringify({ current: {} })))
 
     await expect(provider.getWeather(40, -3)).rejects.toThrow('Invalid Open-Meteo response')
+  })
+
+  it('bounds a hung request with a timeout', async () => {
+    const provider = createOpenMeteoWeatherProvider(async (_input, init) => new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () => reject(new Error('aborted')))
+    }), 5)
+
+    await expect(provider.getWeather(40, -3)).rejects.toThrow('aborted')
   })
 })
 
@@ -65,5 +78,16 @@ describe('getEnvironmentContext', () => {
 
     expect(context.status).toBe('stale')
     expect(context.observedAt).toBe('2020-01-01T00:00:00.000Z')
+  })
+
+  it('falls back when an injected provider returns malformed weather', async () => {
+    const malformedProvider: WeatherProvider = {
+      getWeather: async () => ({ weather: { temperatureC: 'not-a-number' } } as never),
+    }
+
+    const context = await getEnvironmentContext(40, -3, malformedProvider)
+
+    expect(context.weather.temperatureC).toBe(18)
+    expect(context.status).toBe('available')
   })
 })
