@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
 
 import { LocationForm } from '../components/LocationForm'
+import { FireSimulation } from '../components/FireSimulation'
 import { RiskSummary } from '../components/RiskSummary'
 import type { EnvironmentalContext } from '../domain/environment'
 import { calculateRisk } from '../domain/risk'
@@ -55,6 +56,8 @@ function Home() {
           </ul>
         </article>
       </section>
+
+      <FireSimulation context={context} />
 
     </main>
   )

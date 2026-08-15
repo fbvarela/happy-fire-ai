@@ -76,6 +76,13 @@ h1 { max-width: 680px; margin: 18px 0; color: #f3f7ed; font-size: clamp(42px, 7v
 .info-card li span { color: #71857a; font: 12px 'DM Mono', monospace; }
 .safety-note { padding: 28px 0 0; color: #71857a; font-size: 12px; line-height: 1.5; }
 .safety-note strong { color: #c1cec2; font-weight: 500; }
+.simulation-card { margin-top: 16px; padding: 24px; border: 1px solid #293a31; border-radius: 12px; background: #17221d; }
+.simulation-card h2 { margin: 4px 0 0; font-size: 22px; font-weight: 500; }
+.simulation-card .card-kicker { margin: 0; }
+.simulation-step { color: #c7f36b; font: 12px 'DM Mono', monospace; }
+.simulation-canvas { display: block; width: 100%; height: auto; margin: 22px 0 16px; border: 1px solid #304239; border-radius: 7px; image-rendering: pixelated; }
+.simulation-controls { display: flex; flex-wrap: wrap; gap: 10px; }
+.simulation-assumptions { margin: 16px 0 0; color: #71857a; font: 12px/1.5 'DM Mono', monospace; }
 
 @media (max-width: 700px) {
   .app-shell { width: min(100% - 32px, 560px); }
@@ -84,5 +91,6 @@ h1 { max-width: 680px; margin: 18px 0; color: #f3f7ed; font-size: clamp(42px, 7v
   .location-fields { grid-template-columns: 1fr; }
   .location-actions > * { flex: 1 1 100%; }
   .risk-card, .info-card { padding: 20px; }
+  .simulation-card { padding: 20px; }
   .score-value, .score-placeholder { font-size: 60px; }
 }
