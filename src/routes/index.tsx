@@ -1,8 +1,16 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { useState } from 'react'
+
+import { LocationForm } from '../components/LocationForm'
+import type { EnvironmentalContext } from '../domain/environment'
+import { calculateRisk } from '../domain/risk'
 
 export const Route = createFileRoute('/')({ component: Home })
 
 function Home() {
+  const [context, setContext] = useState<EnvironmentalContext | null>(null)
+  const risk = context ? calculateRisk(context) : null
+
   return (
     <main className="app-shell">
       <header className="topbar">
@@ -20,7 +28,7 @@ function Home() {
           Choose a location to compare environmental conditions, understand
           the risk drivers, and explore a hypothetical spread scenario.
         </p>
-        <button className="primary-button" type="button">Choose a location</button>
+        <LocationForm onContext={setContext} />
       </section>
 
       <section className="dashboard-grid" aria-label="Risk dashboard preview">
@@ -29,9 +37,11 @@ function Home() {
             <span>Current risk</span>
             <span className="muted-label">No location selected</span>
           </div>
-          <div className="score-placeholder">--</div>
-          <p className="muted-copy">Select a location to calculate a transparent score.</p>
-          <div className="meter" aria-hidden="true"><span /></div>
+          <div className="score-placeholder">{risk ? risk.score : '--'}</div>
+          <p className="muted-copy">
+            {risk ? `${risk.level} risk, ${risk.confidence}% confidence.` : 'Select a location to calculate a transparent score.'}
+          </p>
+          <div className="meter" aria-hidden="true"><span style={{ width: `${risk?.score ?? 0}%` }} /></div>
         </article>
 
         <article className="info-card">
