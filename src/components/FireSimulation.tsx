@@ -25,6 +25,10 @@ const getOptions = (context: EnvironmentalContext | null): SimulationOptions => 
 export const describeSimulationAssumptions = (context: EnvironmentalContext | null) => {
   if (!context) return 'Fallback assumptions: wind direction north, wind speed 15 kph, slope 10°, vegetation dryness 60.'
 
+  if (context.status === 'error') {
+    return `Mock fallback assumptions are being used: wind ${context.weather.windKph ?? 15} kph, direction ${context.weather.windDirectionDeg ?? 0}°, slope ${context.terrain.slopeDeg ?? 10}°, dryness ${context.fuel.vegetationDryness ?? 60}.`
+  }
+
   const missing = [
     context.weather.windDirectionDeg === null ? 'wind direction north' : null,
     context.weather.windKph === null ? 'wind speed 15 kph' : null,

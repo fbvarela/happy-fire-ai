@@ -1,4 +1,5 @@
 import type { EnvironmentalContext } from '../domain/environment'
+import { formatContextValue, formatObservedAt, formatSource } from '../domain/environmentDisplay'
 import type { RiskResult } from '../domain/risk'
 
 type RiskSummaryProps = {
@@ -14,7 +15,7 @@ const statusCopy = {
 } as const
 
 export function RiskSummary({ result, context }: RiskSummaryProps) {
-  const observedAt = new Date(context.observedAt).toLocaleString()
+  const observedAt = formatObservedAt(context.observedAt, context.source)
   const hasLimitedData = result.factors.some(({ status }) => status !== 'available')
 
   return (
@@ -35,7 +36,10 @@ export function RiskSummary({ result, context }: RiskSummaryProps) {
       <p className="safety-note">
         <strong>Informational estimate only.</strong> This product is not an
         official warning, prediction, or evacuation order. During an active
-        emergency, follow local emergency services and official fire authorities.
+        emergency, follow local authorities and official emergency guidance.
+        <a href="https://www.ready.gov/wildfires" target="_blank" rel="noopener noreferrer">
+          Read official wildfire guidance
+        </a>
       </p>
       <div
         className="meter"
@@ -50,8 +54,27 @@ export function RiskSummary({ result, context }: RiskSummaryProps) {
       <dl className="summary-details">
         <div><dt>Model</dt><dd>{result.modelVersion}</dd></div>
         <div><dt>Observed</dt><dd>{observedAt}</dd></div>
-        <div><dt>Source</dt><dd>{context.source === 'mock' ? 'Mock data' : 'Open-Meteo'}</dd></div>
+        <div><dt>Source</dt><dd>{formatSource(context.source)}</dd></div>
       </dl>
+
+      <div className="environment-section">
+        <div className="card-heading">
+          <h2>Environmental context</h2>
+          <span className="muted-label">Current inputs</span>
+        </div>
+        <dl className="environment-grid">
+          <div><dt>Temperature</dt><dd>{formatContextValue(context.weather.temperatureC, '°C')}</dd></div>
+          <div><dt>Humidity</dt><dd>{formatContextValue(context.weather.humidity, '%')}</dd></div>
+          <div><dt>Precipitation</dt><dd>{formatContextValue(context.weather.precipitationMm24h, 'mm / 24h')}</dd></div>
+          <div><dt>Wind speed</dt><dd>{formatContextValue(context.weather.windKph, 'kph')}</dd></div>
+          <div><dt>Wind direction</dt><dd>{formatContextValue(context.weather.windDirectionDeg, '°')}</dd></div>
+          <div><dt>Slope</dt><dd>{formatContextValue(context.terrain.slopeDeg, '°')}</dd></div>
+          <div><dt>Elevation</dt><dd>{formatContextValue(context.terrain.elevationM, 'm')}</dd></div>
+          <div><dt>Vegetation dryness</dt><dd>{formatContextValue(context.fuel.vegetationDryness, '/ 100')}</dd></div>
+          <div><dt>Nearby people</dt><dd>{formatContextValue(context.exposure.nearbyPeople, 'people')}</dd></div>
+          <div><dt>Season / weather proxy</dt><dd>{formatContextValue(context.seasonWeatherProxy, '/ 100')}</dd></div>
+        </dl>
+      </div>
 
       {context.status === 'error' && (
         <p className="data-warning" role="status">

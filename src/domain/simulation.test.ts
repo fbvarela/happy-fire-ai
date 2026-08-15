@@ -76,4 +76,38 @@ describe('describeSimulationAssumptions', () => {
       'Fallback assumptions: wind direction north, vegetation dryness 60.',
     )
   })
+
+  it('explicitly labels mock fallback assumptions after a provider error', () => {
+    const context: EnvironmentalContext = {
+      latitude: 40,
+      longitude: -3,
+      observedAt: '2026-01-01T00:00:00.000Z',
+      status: 'error',
+      source: 'mock',
+      weather: { temperatureC: 20, humidity: 40, precipitationMm24h: 1, windKph: 10, windDirectionDeg: 180 },
+      terrain: { slopeDeg: 10, elevationM: 500 },
+      fuel: { vegetationDryness: 60 },
+      exposure: { nearbyPeople: 100 },
+      seasonWeatherProxy: 50,
+    }
+
+    expect(describeSimulationAssumptions(context)).toContain('Mock fallback assumptions are being used')
+  })
+
+  it('labels available context as selected context', () => {
+    const context: EnvironmentalContext = {
+      latitude: 40,
+      longitude: -3,
+      observedAt: '2026-01-01T00:00:00.000Z',
+      status: 'available',
+      source: 'open-meteo',
+      weather: { temperatureC: 20, humidity: 40, precipitationMm24h: 1, windKph: 10, windDirectionDeg: 180 },
+      terrain: { slopeDeg: 10, elevationM: 500 },
+      fuel: { vegetationDryness: 60 },
+      exposure: { nearbyPeople: 100 },
+      seasonWeatherProxy: 50,
+    }
+
+    expect(describeSimulationAssumptions(context)).toContain('Using selected context')
+  })
 })
