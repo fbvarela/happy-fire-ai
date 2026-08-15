@@ -22,6 +22,15 @@ const completeContext: EnvironmentalContext = {
 }
 
 describe('calculateRisk', () => {
+  const boundaryBase = {
+    ...completeContext,
+    weather: { temperatureC: null, humidity: null, precipitationMm24h: null, windKph: null, windDirectionDeg: null },
+    terrain: { slopeDeg: null, elevationM: null },
+    fuel: { vegetationDryness: null },
+    seasonWeatherProxy: null,
+    exposure: { nearbyPeople: null },
+  }
+
   it('calculates weighted contributions for a complete context', () => {
     const result = calculateRisk(completeContext)
 
@@ -99,12 +108,7 @@ describe('calculateRisk', () => {
     [75, 'extreme', { fuel: { vegetationDryness: 70 }, terrain: { slopeDeg: 45, elevationM: null }, seasonWeatherProxy: 100, exposure: { nearbyPeople: 1000 } }],
   ] as const)('classifies score boundary %s as %s', (targetScore, level, overrides) => {
     const result = calculateRisk({
-      ...completeContext,
-      weather: { temperatureC: null, humidity: null, precipitationMm24h: null, windKph: null, windDirectionDeg: null },
-      terrain: { slopeDeg: null, elevationM: null },
-      fuel: { vegetationDryness: null },
-      seasonWeatherProxy: null,
-      exposure: { nearbyPeople: null },
+      ...boundaryBase,
       ...overrides,
     })
 

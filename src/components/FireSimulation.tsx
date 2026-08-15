@@ -23,11 +23,13 @@ const getOptions = (context: EnvironmentalContext | null): SimulationOptions => 
 })
 
 export const describeSimulationAssumptions = (context: EnvironmentalContext | null) => {
+  if (!context) return 'Fallback assumptions: wind direction north, wind speed 15 kph, slope 10°, vegetation dryness 60.'
+
   const missing = [
-    context?.weather.windDirectionDeg === null || !context ? 'wind direction north' : null,
-    context?.weather.windKph === null || !context ? 'wind speed 15 kph' : null,
-    context?.terrain.slopeDeg === null || !context ? 'slope 10°' : null,
-    context?.fuel.vegetationDryness === null || !context ? 'vegetation dryness 60' : null,
+    context.weather.windDirectionDeg === null ? 'wind direction north' : null,
+    context.weather.windKph === null ? 'wind speed 15 kph' : null,
+    context.terrain.slopeDeg === null ? 'slope 10°' : null,
+    context.fuel.vegetationDryness === null ? 'vegetation dryness 60' : null,
   ].filter((value): value is string => value !== null)
 
   return missing.length > 0

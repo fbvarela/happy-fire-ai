@@ -26,3 +26,21 @@ Read `spec.md` and `PLAN.md` in full. The fix preserves the deterministic MVP sc
 - No AI, map, visualization dependency, or generic abstraction was added.
 - `.idea/` and the pre-existing `src/routeTree.gen.ts` worktree change were not staged.
 - Vitest prints the existing `VERCEL_OIDC_TOKEN` warning and reports a delayed worker shutdown after successful runs; neither changes the test result.
+
+## Scoped Review Fix
+
+- Made Open-Meteo range predicates explicit type guards for nullable normalized values.
+- Narrowed injected-provider weather objects through a `Record<string, unknown>` boundary without weakening any range checks.
+- Added an explicit no-context branch in `describeSimulationAssumptions` so the existing FireSimulation diagnostics pass strict TypeScript checking.
+- Reworked risk boundary fixtures to avoid duplicate object-property diagnostics.
+- Open-Meteo now parses every hourly timestamp before aggregation and rejects the response if any timestamp is invalid; invalid entries are no longer silently skipped.
+- Added a regression test for an invalid hourly timestamp.
+
+## Scoped Review Verification
+
+- `npm test`: passed, 3 test files and 27 tests.
+- `npx tsc --noEmit`: passed with no diagnostics.
+- `npm run generate-routes`: passed before the build.
+- `npm run build`: passed with Nitro Vercel preset and generated `.vercel/output`.
+- `npm run generate-routes`: passed again after the build; no additional route-tree diff was produced.
+- `git diff --check`: passed.

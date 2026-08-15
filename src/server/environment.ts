@@ -11,16 +11,17 @@ type Coordinates = {
 const observedAt = '2026-01-01T00:00:00.000Z'
 const freshnessThresholdMs = 90 * 60 * 1000
 const isNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
-const isHumidity = (value: unknown) => value === null || (isNumber(value) && value >= 0 && value <= 100)
-const isNonNegative = (value: unknown) => value === null || (isNumber(value) && value >= 0)
-const isWindDirection = (value: unknown) => value === null || (isNumber(value) && value >= 0 && value <= 360)
+const isHumidity = (value: unknown): value is number | null => value === null || (isNumber(value) && value >= 0 && value <= 100)
+const isNonNegative = (value: unknown): value is number | null => value === null || (isNumber(value) && value >= 0)
+const isWindDirection = (value: unknown): value is number | null => value === null || (isNumber(value) && value >= 0 && value <= 360)
 const isWeatherResult = (value: unknown): value is Pick<EnvironmentalContext, 'weather'> => {
   if (!value || typeof value !== 'object' || !('weather' in value)) return false
   const weather = value.weather
-  return !!weather && typeof weather === 'object' &&
-     (weather.temperatureC === null || isNumber(weather.temperatureC)) &&
-     isHumidity(weather.humidity) && isNonNegative(weather.precipitationMm24h) &&
-     isNonNegative(weather.windKph) && isWindDirection(weather.windDirectionDeg)
+  if (!weather || typeof weather !== 'object') return false
+  const fields = weather as Record<string, unknown>
+  return (fields.temperatureC === null || isNumber(fields.temperatureC)) &&
+    isHumidity(fields.humidity) && isNonNegative(fields.precipitationMm24h) &&
+    isNonNegative(fields.windKph) && isWindDirection(fields.windDirectionDeg)
 }
 
 const validateCoordinates = (coordinates: Coordinates) => {

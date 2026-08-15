@@ -18,9 +18,9 @@ type OpenMeteoResponse = {
 }
 
 const isNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
-const isHumidity = (value: unknown) => value === null || (isNumber(value) && value >= 0 && value <= 100)
-const isNonNegative = (value: unknown) => value === null || (isNumber(value) && value >= 0)
-const isWindDirection = (value: unknown) => value === null || (isNumber(value) && value >= 0 && value <= 360)
+const isHumidity = (value: unknown): value is number | null => value === null || (isNumber(value) && value >= 0 && value <= 100)
+const isNonNegative = (value: unknown): value is number | null => value === null || (isNumber(value) && value >= 0)
+const isWindDirection = (value: unknown): value is number | null => value === null || (isNumber(value) && value >= 0 && value <= 360)
 const parseUtcTimestamp = (value: string) => {
   const date = new Date(value.endsWith('Z') ? value : `${value}Z`)
   return Number.isNaN(date.getTime()) ? undefined : date
@@ -65,10 +65,15 @@ export const createOpenMeteoWeatherProvider = (
       const parsedTimestamp = parseUtcTimestamp(current.time)
       if (!parsedTimestamp) throw new Error('Invalid Open-Meteo response')
       const windowStart = parsedTimestamp.getTime() - 24 * 60 * 60 * 1000
-      const precipitationMm24h = hourlyTimes.reduce((total, time, index) => {
+      const parsedHours: Date[] = []
+      for (const time of hourlyTimes) {
         const hour = parseUtcTimestamp(time)
-        return hour && hour.getTime() > windowStart && hour.getTime() <= parsedTimestamp.getTime()
-          ? total + hourlyPrecipitation[index]
+        if (!hour) throw new Error('Invalid Open-Meteo response')
+        parsedHours.push(hour)
+      }
+      const precipitationMm24h = parsedHours.reduce((total, hour, index) => {
+        return hour.getTime() > windowStart && hour.getTime() <= parsedTimestamp.getTime()
+          ? total + (hourlyPrecipitation[index] ?? 0)
           : total
       }, 0)
       const sourceTimestamp = parsedTimestamp.toISOString()

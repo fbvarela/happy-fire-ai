@@ -41,6 +41,24 @@ describe('Open-Meteo weather provider', () => {
     await expect(provider.getWeather(40, -3)).rejects.toThrow('Invalid Open-Meteo response')
   })
 
+  it('rejects an invalid hourly timestamp instead of skipping it', async () => {
+    const provider = createOpenMeteoWeatherProvider(async () => new Response(JSON.stringify({
+      current: {
+        time: '2026-08-15T12:00',
+        temperature_2m: 22,
+        relative_humidity_2m: 48,
+        wind_speed_10m: 14,
+        wind_direction_10m: 210,
+      },
+      hourly: {
+        time: ['2026-08-15T11:00', 'not-a-timestamp'],
+        precipitation: [1.2, 2.3],
+      },
+    })))
+
+    await expect(provider.getWeather(40, -3)).rejects.toThrow('Invalid Open-Meteo response')
+  })
+
   it.each([
     ['humidity', { relative_humidity_2m: 101 }],
     ['precipitation', { precipitation: [-1] }],
