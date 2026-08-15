@@ -52,6 +52,7 @@ export function calculateRisk(context: EnvironmentalContext): RiskResult {
   const fuelValues = [context.fuel.vegetationDryness]
   const seasonValues = [context.seasonWeatherProxy]
   const exposureValues = [context.exposure.nearbyPeople]
+  const inputGroups = [weatherValues, terrainValues, fuelValues, seasonValues, exposureValues]
 
   const weather = average([
     context.weather.temperatureC === null ? null : clamp((context.weather.temperatureC - 20) * 4),
@@ -110,10 +111,16 @@ export function calculateRisk(context: EnvironmentalContext): RiskResult {
   ]
 
   const score = round(clamp(factors.reduce((sum, factor) => sum + factor.contribution, 0)))
-  const confidence = factors.reduce(
-    (value, factor) => value - (factor.status === 'missing' ? 6 : factor.status === 'stale' ? 10 : 0),
-    100,
-  )
+  const totalInputs = inputGroups.reduce((count, values) => count + values.length, 0)
+  const confidencePenalty =
+    context.status === 'available'
+      ? inputGroups.reduce(
+          (penalty, values) =>
+            penalty + values.filter((value) => value === null).length * 6,
+          0,
+        )
+      : totalInputs * (context.status === 'missing' ? 6 : 10)
+  const confidence = clamp(100 - confidencePenalty)
 
   return {
     score,

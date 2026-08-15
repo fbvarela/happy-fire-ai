@@ -59,29 +59,26 @@ describe('calculateRisk', () => {
     expect(result.level).toBe('extreme')
   })
 
-  it('marks missing inputs and reduces confidence', () => {
+  it('reduces confidence for each missing input within one factor', () => {
     const result = calculateRisk({
       ...completeContext,
-      status: 'missing',
-      weather: { ...completeContext.weather, humidity: null },
-      terrain: { ...completeContext.terrain, slopeDeg: null },
-      seasonWeatherProxy: null,
+      weather: { ...completeContext.weather, humidity: null, windKph: null },
     })
 
-    expect(result.confidence).toBe(70)
+    expect(result.confidence).toBe(88)
     expect(result.factors.map(({ id, status }) => [id, status])).toEqual([
       ['weather', 'missing'],
-      ['terrain', 'missing'],
-      ['fuel', 'missing'],
-      ['season-weather', 'missing'],
-      ['exposure', 'missing'],
+      ['terrain', 'available'],
+      ['fuel', 'available'],
+      ['season-weather', 'available'],
+      ['exposure', 'available'],
     ])
   })
 
   it('marks a stale context and reduces confidence', () => {
     const result = calculateRisk({ ...completeContext, status: 'stale' })
 
-    expect(result.confidence).toBe(50)
+    expect(result.confidence).toBe(0)
     expect(result.factors.every(({ status }) => status === 'stale')).toBe(true)
   })
 })
