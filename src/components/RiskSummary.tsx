@@ -31,6 +31,11 @@ export function RiskSummary({ result, context }: RiskSummaryProps) {
           <span>confidence</span>
         </div>
       </div>
+      <p className="safety-note">
+        <strong>Informational estimate only.</strong> This product is not an
+        official warning, prediction, or evacuation order. During an active
+        emergency, follow local emergency services and official fire authorities.
+      </p>
       <div
         className="meter"
         role="progressbar"
