@@ -32,6 +32,8 @@ export function LocationForm({ onContext }: LocationFormProps) {
   }
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    if (loading) return
+
     event.preventDefault()
     void submitCoordinates(Number(latitude), Number(longitude))
   }
