@@ -3,6 +3,7 @@ import { createServerFn } from '@tanstack/react-start'
 import type { EnvironmentalContext } from '../domain/environment'
 import { createCopernicusLandCoverProvider, type LandCoverProvider } from './providers/landcover'
 import { createOpenMeteoWeatherProvider, type WeatherProvider } from './providers/weather'
+import { createWorldPopPopulationProvider, type PopulationProvider } from './providers/population'
 
 type Coordinates = {
   latitude: number
@@ -20,6 +21,9 @@ const weatherCache = new Map<string, {
   fuel: EnvironmentalContext['fuel']
   fuelSource: EnvironmentalContext['fuelSource']
   fuelWarning?: string
+  exposure: EnvironmentalContext['exposure']
+  exposureSource: EnvironmentalContext['exposureSource']
+  exposureWarning?: string
   source: EnvironmentalContext['source']
   sourceTimestamp: string
   expiresAt: number
@@ -54,7 +58,8 @@ const getCacheKey = (
   longitude: number,
   weatherEnabled: boolean,
   landCoverEnabled: boolean,
-) => `${latitude},${longitude}:${weatherEnabled ? 'live' : 'mock'}:${landCoverEnabled ? 'live' : 'mock'}`
+  populationEnabled: boolean,
+) => `${latitude},${longitude}:${weatherEnabled ? 'live' : 'mock'}:${landCoverEnabled ? 'live' : 'mock'}:${populationEnabled ? 'live' : 'mock'}`
 
 const pruneWeatherCache = (now: number) => {
   for (const [key, entry] of weatherCache) {
@@ -109,6 +114,7 @@ const getMockContext = (latitude: number, longitude: number): EnvironmentalConte
       vegetationDryness: Math.round((35 + latitudeSignal * 55) * 10) / 10,
     },
     fuelSource: 'mock',
+    exposureSource: 'mock',
     exposure: {
       nearbyPeople: 400 + Math.round(longitudeSignal * 4000),
     },
@@ -121,6 +127,7 @@ export const getEnvironmentContext = async (
   longitude: number,
   provider?: WeatherProvider & { sourceTimestamp?: string },
   landCoverProvider?: LandCoverProvider,
+  populationProvider?: PopulationProvider,
 ): Promise<EnvironmentalContext> => {
   validateCoordinates({ latitude, longitude })
   const fallback = getMockContext(latitude, longitude)
@@ -136,7 +143,12 @@ export const getEnvironmentContext = async (
         })
       : undefined
   )
-  if (!weatherProvider && !configuredLandCover) return fallback
+  const configuredPopulation = populationProvider ?? (
+    process.env.WORLDPOP_ENABLED === 'true' || process.env.WORLDPOP_API_KEY
+      ? createWorldPopPopulationProvider()
+      : undefined
+  )
+  if (!weatherProvider && !configuredLandCover && !configuredPopulation) return fallback
 
   const cacheEnabled = provider === undefined
   const cacheKey = getCacheKey(
@@ -144,6 +156,7 @@ export const getEnvironmentContext = async (
     longitude,
     weatherProvider !== undefined,
     configuredLandCover !== undefined,
+    configuredPopulation !== undefined,
   )
   const startedAt = Date.now()
   if (cacheEnabled) {
@@ -151,12 +164,12 @@ export const getEnvironmentContext = async (
     const cached = weatherCache.get(cacheKey)
     if (cached) {
       logWeatherEvent('weather-cache-hit', {
-        latitude,
-        longitude,
         ageMs: Math.max(0, startedAt - Date.parse(cached.sourceTimestamp)),
         expiresAt: new Date(cached.expiresAt).toISOString(),
         expiresInMs: Math.max(0, cached.expiresAt - startedAt),
         sourceTimestamp: cached.sourceTimestamp,
+        source: cached.source,
+        status: getFreshnessStatus(cached.sourceTimestamp),
         durationMs: Date.now() - startedAt,
       })
       return {
@@ -166,6 +179,9 @@ export const getEnvironmentContext = async (
         fuel: cached.fuel,
         fuelSource: cached.fuelSource,
         fuelWarning: cached.fuelWarning,
+        exposure: cached.exposure,
+        exposureSource: cached.exposureSource,
+        exposureWarning: cached.exposureWarning,
         observedAt: cached.sourceTimestamp,
         status: getFreshnessStatus(cached.sourceTimestamp),
         source: cached.source,
@@ -181,13 +197,15 @@ export const getEnvironmentContext = async (
     if (!isWeatherResult(result)) throw new Error('Invalid provider weather')
     let terrain = fallback.terrain
     if (weatherProvider?.getTerrain) {
+      const terrainStartedAt = Date.now()
       try {
         const terrainResult: unknown = await weatherProvider.getTerrain(latitude, longitude)
         if (isTerrainResult(terrainResult)) terrain = terrainResult.terrain
       } catch (error) {
         console.warn('[environment] terrain-fetch-failed', JSON.stringify({
-          latitude,
-          longitude,
+          durationMs: Date.now() - terrainStartedAt,
+          source: 'open-meteo',
+          status: 'fallback',
           error: error instanceof Error ? error.message : 'unknown error',
         }))
       }
@@ -196,6 +214,7 @@ export const getEnvironmentContext = async (
     let fuelSource: EnvironmentalContext['fuelSource'] = 'mock'
     let fuelWarning: string | undefined
     if (configuredLandCover) {
+      const fuelStartedAt = Date.now()
       try {
         const fuelResult = await configuredLandCover.getVegetationDryness(latitude, longitude)
         if (fuelResult.source !== 'copernicus' || !isNumber(fuelResult.vegetationDryness) || fuelResult.vegetationDryness < 0 || fuelResult.vegetationDryness > 100) {
@@ -206,8 +225,34 @@ export const getEnvironmentContext = async (
       } catch (error) {
         fuelWarning = 'Copernicus land-cover data was unavailable; deterministic mock fuel is shown.'
         console.warn('[environment] landcover-fetch-failed', JSON.stringify({
-          latitude,
-          longitude,
+          durationMs: Date.now() - fuelStartedAt,
+          source: 'copernicus',
+          status: 'fallback',
+          error: error instanceof Error ? error.message : 'unknown error',
+        }))
+      }
+    }
+    let exposure = fallback.exposure
+    let exposureSource: EnvironmentalContext['exposureSource'] = 'mock'
+    let exposureWarning: string | undefined
+    if (configuredPopulation) {
+      const populationStartedAt = Date.now()
+      try {
+        const populationResult = await configuredPopulation.getNearbyPeople(latitude, longitude)
+        if (populationResult.source !== 'worldpop' || !isNumber(populationResult.nearbyPeople) || populationResult.nearbyPeople < 0) {
+          throw new Error('Invalid provider population')
+        }
+        exposure = { nearbyPeople: populationResult.nearbyPeople }
+        exposureSource = 'worldpop'
+        console.info('[environment] population-fetch', JSON.stringify({
+          status: 'worldpop',
+          durationMs: Date.now() - populationStartedAt,
+        }))
+      } catch (error) {
+        exposureWarning = 'WorldPop population data was unavailable; deterministic mock exposure is shown.'
+        console.warn('[environment] population-fetch-failed', JSON.stringify({
+          status: 'fallback',
+          durationMs: Date.now() - populationStartedAt,
           error: error instanceof Error ? error.message : 'unknown error',
         }))
       }
@@ -228,16 +273,18 @@ export const getEnvironmentContext = async (
         fuel,
         fuelSource,
         fuelWarning,
+        exposure,
+        exposureSource,
+        exposureWarning,
         source: weatherProvider ? 'open-meteo' : 'mock',
         sourceTimestamp,
         expiresAt: now + cacheTtlMs,
       })
     }
     logWeatherEvent('weather-fetch', {
-      latitude,
-      longitude,
       durationMs: Date.now() - startedAt,
       source: weatherProvider ? 'open-meteo' : 'mock',
+      status: getFreshnessStatus(sourceTimestamp),
     })
     return {
       ...fallback,
@@ -246,6 +293,9 @@ export const getEnvironmentContext = async (
       fuel,
       fuelSource,
       fuelWarning,
+      exposure,
+      exposureSource,
+      exposureWarning,
       observedAt: sourceTimestamp,
       status: getFreshnessStatus(sourceTimestamp),
       source: weatherProvider ? 'open-meteo' : 'mock',
@@ -253,9 +303,9 @@ export const getEnvironmentContext = async (
     }
   } catch (error) {
     console.warn('[environment] weather-fetch-failed', JSON.stringify({
-      latitude,
-      longitude,
       durationMs: Date.now() - startedAt,
+      source: weatherProvider ? 'open-meteo' : 'mock',
+      status: 'error',
       error: error instanceof Error ? error.message : 'unknown error',
     }))
     return { ...fallback, status: 'error', cacheStatus: 'fallback' }

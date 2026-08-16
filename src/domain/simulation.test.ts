@@ -61,6 +61,7 @@ describe('describeSimulationAssumptions', () => {
       source: 'mock',
       cacheStatus: 'fallback',
       fuelSource: 'mock',
+      exposureSource: 'mock',
       weather: {
         temperatureC: 30,
         humidity: 40,
@@ -88,6 +89,7 @@ describe('describeSimulationAssumptions', () => {
       source: 'mock',
       cacheStatus: 'fallback',
       fuelSource: 'mock',
+      exposureSource: 'mock',
       weather: { temperatureC: 20, humidity: 40, precipitationMm24h: 1, windKph: 10, windDirectionDeg: 180 },
       terrain: { slopeDeg: 10, elevationM: 500 },
       fuel: { vegetationDryness: 60 },
@@ -107,6 +109,7 @@ describe('describeSimulationAssumptions', () => {
       source: 'open-meteo',
       cacheStatus: 'miss',
       fuelSource: 'mock',
+      exposureSource: 'mock',
       weather: { temperatureC: 20, humidity: 40, precipitationMm24h: 1, windKph: 10, windDirectionDeg: 180 },
       terrain: { slopeDeg: 10, elevationM: 500 },
       fuel: { vegetationDryness: 60 },

@@ -1,5 +1,5 @@
 import type { EnvironmentalContext } from '../domain/environment'
-import { formatContextValue, formatFuelSource, formatObservedAt, formatSource } from '../domain/environmentDisplay'
+import { formatContextValue, formatExposureSource, formatFuelSource, formatObservedAt, formatSource } from '../domain/environmentDisplay'
 import type { RiskResult } from '../domain/risk'
 
 type RiskSummaryProps = {
@@ -56,6 +56,7 @@ export function RiskSummary({ result, context }: RiskSummaryProps) {
         <div><dt>Observed</dt><dd>{observedAt}</dd></div>
         <div><dt>Source</dt><dd>{formatSource(context.source)}</dd></div>
         <div><dt>Fuel source</dt><dd>{formatFuelSource(context.fuelSource)}</dd></div>
+        <div><dt>Exposure source</dt><dd>{formatExposureSource(context.exposureSource)}</dd></div>
         <div><dt>Cache</dt><dd>{context.cacheStatus}</dd></div>
       </dl>
 
@@ -85,6 +86,9 @@ export function RiskSummary({ result, context }: RiskSummaryProps) {
       )}
       {context.fuelSource === 'mock' && context.fuelWarning && (
         <p className="data-warning" role="status">{context.fuelWarning}</p>
+      )}
+      {context.exposureSource === 'mock' && context.exposureWarning && (
+        <p className="data-warning" role="status">{context.exposureWarning}</p>
       )}
 
       <div className="factor-section">

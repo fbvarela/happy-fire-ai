@@ -25,6 +25,8 @@ export type EnvironmentalContext = {
   }
   fuelSource: 'mock' | 'copernicus'
   fuelWarning?: string
+  exposureSource: 'mock' | 'worldpop'
+  exposureWarning?: string
   exposure: {
     nearbyPeople: number | null
   }

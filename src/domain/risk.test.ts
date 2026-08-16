@@ -10,6 +10,7 @@ const completeContext: EnvironmentalContext = {
   source: 'mock',
   cacheStatus: 'fallback',
   fuelSource: 'mock',
+  exposureSource: 'mock',
   weather: {
     temperatureC: 30,
     humidity: 40,
