@@ -115,7 +115,7 @@ export function createCopernicusLandCoverProvider(tokenOrOptions: string | Coper
        const fractions = Array.isArray(bands) ? bands.slice(0, 5) : []
        const classification = Array.isArray(bands) ? bands[5] : undefined
        const total = fractions.reduce((sum, value) => sum + value, 0)
-       if (fractions.length !== 5 || !fractions.every(isFraction) || total > 100 || (total === 0 && !isClassification(classification))) {
+       if (fractions.length !== 5 || !fractions.every(isFraction) || !isClassification(classification) || total > 100) {
          throw new Error('Invalid Copernicus land-cover response')
        }
        if (total === 0) return { vegetationDryness: drynessByClassification(classification as number), source: 'copernicus' }

@@ -4,7 +4,7 @@ import { clearCopernicusTokenCache, createCopernicusLandCoverProvider } from './
 
 afterEach(() => clearCopernicusTokenCache())
 
-const fakeDecoder = async () => [40, 20, 20, 10, 10]
+const fakeDecoder = async () => [40, 20, 20, 10, 10, 20]
 
 describe('Copernicus land-cover provider', () => {
   it('requests the global land-cover BYOC and maps cover fractions to fuel dryness', async () => {
@@ -34,13 +34,13 @@ describe('Copernicus land-cover provider', () => {
   })
 
   it('rejects malformed or out-of-range land-cover samples', async () => {
-    const provider = createCopernicusLandCoverProvider({ accessToken: 'test-token', decoder: async () => [40, 20, 20, 10, 101] }, async () => new Response(new ArrayBuffer(0)))
+    const provider = createCopernicusLandCoverProvider({ accessToken: 'test-token', decoder: async () => [40, 20, 20, 10, 101, 20] }, async () => new Response(new ArrayBuffer(0)))
 
     await expect(provider.getVegetationDryness(40, -3)).rejects.toThrow('Invalid Copernicus land-cover response')
   })
 
   it('rejects individually valid fractions whose combined total exceeds 100', async () => {
-    const provider = createCopernicusLandCoverProvider({ accessToken: 'test-token', decoder: async () => [30, 30, 30, 20, 0] }, async () => new Response(new ArrayBuffer(0)))
+    const provider = createCopernicusLandCoverProvider({ accessToken: 'test-token', decoder: async () => [30, 30, 30, 20, 0, 20] }, async () => new Response(new ArrayBuffer(0)))
 
     await expect(provider.getVegetationDryness(40, -3)).rejects.toThrow('Invalid Copernicus land-cover response')
   })
