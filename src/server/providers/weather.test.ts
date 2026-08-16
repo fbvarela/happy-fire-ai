@@ -1,7 +1,7 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { EnvironmentalContext } from '../../domain/environment'
-import { getEnvironmentContext } from '../environment'
+import { clearEnvironmentCache, getEnvironmentContext } from '../environment'
 import { createOpenMeteoWeatherProvider, type WeatherProvider } from './weather'
 
 const weather: EnvironmentalContext['weather'] = {
@@ -93,6 +93,49 @@ describe('Open-Meteo weather provider', () => {
 })
 
 describe('getEnvironmentContext', () => {
+  afterEach(() => {
+    clearEnvironmentCache()
+    vi.restoreAllMocks()
+  })
+
+  it('caches successful provider context for the same coordinates', async () => {
+    let calls = 0
+    const provider: WeatherProvider & { sourceTimestamp: string } = {
+      sourceTimestamp: '2026-08-15T12:00:00.000Z',
+      getWeather: async () => {
+        calls += 1
+        return { weather }
+      },
+    }
+
+    const first = await getEnvironmentContext(41, -4, provider)
+    const second = await getEnvironmentContext(41, -4, provider)
+
+    expect(calls).toBe(1)
+    expect(first.cacheStatus).toBe('miss')
+    expect(second.cacheStatus).toBe('hit')
+  })
+
+  it('expires cached provider context after the TTL', async () => {
+    let now = Date.parse('2026-08-15T12:00:00.000Z')
+    vi.spyOn(Date, 'now').mockImplementation(() => now)
+    let calls = 0
+    const provider: WeatherProvider & { sourceTimestamp: string } = {
+      sourceTimestamp: '2026-08-15T12:00:00.000Z',
+      getWeather: async () => {
+        calls += 1
+        return { weather }
+      },
+    }
+
+    await getEnvironmentContext(42, -5, provider)
+    now += 10 * 60 * 1000 + 1
+    const expired = await getEnvironmentContext(42, -5, provider)
+
+    expect(calls).toBe(2)
+    expect(expired.cacheStatus).toBe('miss')
+  })
+
   it('falls back to deterministic mock weather when a provider is unavailable', async () => {
     const unavailableProvider: WeatherProvider = {
       getWeather: async () => { throw new Error('offline') },
@@ -102,6 +145,7 @@ describe('getEnvironmentContext', () => {
 
     expect(context.status).toBe('error')
     expect(context.source).toBe('mock')
+    expect(context.cacheStatus).toBe('fallback')
     expect(context.weather).toEqual({
       temperatureC: 18,
       humidity: 35,

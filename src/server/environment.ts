@@ -10,6 +10,12 @@ type Coordinates = {
 
 const observedAt = '2026-01-01T00:00:00.000Z'
 const freshnessThresholdMs = 90 * 60 * 1000
+const cacheTtlMs = 10 * 60 * 1000
+const weatherCache = new Map<string, {
+  weather: EnvironmentalContext['weather']
+  sourceTimestamp: string
+  expiresAt: number
+}>()
 const isNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
 const isHumidity = (value: unknown): value is number | null => value === null || (isNumber(value) && value >= 0 && value <= 100)
 const isNonNegative = (value: unknown): value is number | null => value === null || (isNumber(value) && value >= 0)
@@ -23,6 +29,17 @@ const isWeatherResult = (value: unknown): value is Pick<EnvironmentalContext, 'w
     isHumidity(fields.humidity) && isNonNegative(fields.precipitationMm24h) &&
     isNonNegative(fields.windKph) && isWindDirection(fields.windDirectionDeg)
 }
+
+const getFreshnessStatus = (sourceTimestamp: string) =>
+  Date.now() - Date.parse(sourceTimestamp) > freshnessThresholdMs ? 'stale' : 'available'
+
+const getCacheKey = (latitude: number, longitude: number) => `${latitude},${longitude}`
+
+const logWeatherEvent = (event: string, details: Record<string, unknown>) => {
+  console.info(`[environment] ${event}`, JSON.stringify(details))
+}
+
+export const clearEnvironmentCache = () => weatherCache.clear()
 
 const validateCoordinates = (coordinates: Coordinates) => {
   if (
@@ -49,6 +66,7 @@ const getMockContext = (latitude: number, longitude: number): EnvironmentalConte
     observedAt,
     status: 'available',
     source: 'mock',
+    cacheStatus: 'fallback',
     weather: {
       temperatureC: 18 + Math.round(latitudeSignal * 12),
       humidity: 35 + Math.round(longitudeSignal * 40),
@@ -82,16 +100,54 @@ export const getEnvironmentContext = async (
     : undefined)
   if (!weatherProvider) return fallback
 
+  const cacheKey = getCacheKey(latitude, longitude)
+  const cached = weatherCache.get(cacheKey)
+  if (cached && cached.expiresAt > Date.now()) {
+    logWeatherEvent('weather-cache-hit', { latitude, longitude })
+    return {
+      ...fallback,
+      weather: cached.weather,
+      observedAt: cached.sourceTimestamp,
+      status: getFreshnessStatus(cached.sourceTimestamp),
+      source: 'open-meteo',
+      cacheStatus: 'hit',
+    }
+  }
+
+  const startedAt = Date.now()
   try {
     const result: unknown = await weatherProvider.getWeather(latitude, longitude)
     if (!isWeatherResult(result)) throw new Error('Invalid provider weather')
     const sourceTimestamp = weatherProvider.sourceTimestamp ?? new Date().toISOString()
     const sourceTime = Date.parse(sourceTimestamp)
     if (Number.isNaN(sourceTime)) throw new Error('Invalid provider timestamp')
-    const status = Date.now() - sourceTime > freshnessThresholdMs ? 'stale' : 'available'
-    return { ...fallback, ...result, observedAt: sourceTimestamp, status, source: 'open-meteo' }
-  } catch {
-    return { ...fallback, status: 'error' }
+    weatherCache.set(cacheKey, {
+      weather: result.weather,
+      sourceTimestamp,
+      expiresAt: Date.now() + cacheTtlMs,
+    })
+    logWeatherEvent('weather-fetch', {
+      latitude,
+      longitude,
+      durationMs: Date.now() - startedAt,
+      source: 'open-meteo',
+    })
+    return {
+      ...fallback,
+      weather: result.weather,
+      observedAt: sourceTimestamp,
+      status: getFreshnessStatus(sourceTimestamp),
+      source: 'open-meteo',
+      cacheStatus: 'miss',
+    }
+  } catch (error) {
+    console.warn('[environment] weather-fetch-failed', JSON.stringify({
+      latitude,
+      longitude,
+      durationMs: Date.now() - startedAt,
+      error: error instanceof Error ? error.message : 'unknown error',
+    }))
+    return { ...fallback, status: 'error', cacheStatus: 'fallback' }
   }
 }
 
