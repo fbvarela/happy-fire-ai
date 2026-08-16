@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { EnvironmentalContext } from '../../domain/environment'
 import { clearEnvironmentCache, getEnvironmentContext } from '../environment'
@@ -176,9 +176,18 @@ describe('Open-Meteo weather provider', () => {
 })
 
 describe('getEnvironmentContext', () => {
+  beforeEach(() => {
+    delete process.env.CDSE_ACCESS_TOKEN
+    delete process.env.CDSE_CLIENT_ID
+    delete process.env.CDSE_CLIENT_SECRET
+  })
+
   afterEach(() => {
     clearEnvironmentCache()
     delete process.env.WEATHER_PROVIDER
+    delete process.env.CDSE_ACCESS_TOKEN
+    delete process.env.CDSE_CLIENT_ID
+    delete process.env.CDSE_CLIENT_SECRET
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
   })
@@ -310,6 +319,45 @@ describe('getEnvironmentContext', () => {
       windKph: 8,
       windDirectionDeg: 177,
     })
+  })
+
+  it('keeps live weather and terrain when land-cover fuel fails', async () => {
+    const provider: WeatherProvider & { sourceTimestamp: string } = {
+      sourceTimestamp: new Date().toISOString(),
+      getWeather: async () => ({ weather }),
+      getTerrain: async () => ({ terrain: { elevationM: 900, slopeDeg: 12 } }),
+    }
+    const context = await getEnvironmentContext(43, -6, provider, {
+      getVegetationDryness: async () => { throw new Error('land-cover offline') },
+    })
+
+    expect(context.weather).toEqual(weather)
+    expect(context.terrain).toEqual({ elevationM: 900, slopeDeg: 12 })
+    expect(context.fuelSource).toBe('mock')
+    expect(context.fuelWarning).toContain('Copernicus')
+    expect(context.status).toBe('available')
+  })
+
+  it('caches Copernicus fuel together with default weather and terrain', async () => {
+    process.env.WEATHER_PROVIDER = 'open-meteo'
+    process.env.CDSE_ACCESS_TOKEN = 'test-token'
+    const fetcher = vi.fn((input: Request | URL | string) => {
+      const url = new URL(input.toString())
+      if (url.pathname.endsWith('/elevation')) return Promise.resolve(openMeteoTerrainResponse())
+      if (url.pathname.endsWith('/process')) return Promise.resolve(new Response(JSON.stringify({ data: [{ bands: [40, 20, 20, 10, 10] }] })))
+      return Promise.resolve(openMeteoResponse())
+    })
+    vi.stubGlobal('fetch', fetcher)
+
+    const first = await getEnvironmentContext(41, -4)
+    const second = await getEnvironmentContext(41, -4)
+
+    expect(first.fuelSource).toBe('copernicus')
+    expect(first.fuel.vegetationDryness).toBe(73)
+    expect(second.fuel).toEqual(first.fuel)
+    expect(second.fuelSource).toBe('copernicus')
+    expect(second.cacheStatus).toBe('hit')
+    expect(fetcher.mock.calls.filter(([input]) => new URL(input.toString()).pathname.endsWith('/process'))).toHaveLength(1)
   })
 
   it('uses provider terrain when available', async () => {

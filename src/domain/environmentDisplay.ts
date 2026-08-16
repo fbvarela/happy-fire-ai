@@ -10,3 +10,6 @@ export const formatObservedAt = (observedAt: string, source: DataSource) => {
 
 export const formatSource = (source: DataSource) =>
   source === 'mock' ? 'Deterministic mock (synthetic)' : 'Open-Meteo'
+
+export const formatFuelSource = (source: 'mock' | 'copernicus') =>
+  source === 'copernicus' ? 'Copernicus Land Monitoring Service' : 'Deterministic mock (synthetic)'
