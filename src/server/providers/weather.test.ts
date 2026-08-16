@@ -338,6 +338,19 @@ describe('getEnvironmentContext', () => {
     expect(context.status).toBe('available')
   })
 
+  it('does not reuse mock cache entries when land-cover becomes configured', async () => {
+    process.env.WEATHER_PROVIDER = 'open-meteo'
+    vi.stubGlobal('fetch', openMeteoFetcher)
+    const first = await getEnvironmentContext(44, -7)
+    const second = await getEnvironmentContext(44, -7, undefined, {
+      getVegetationDryness: async () => ({ vegetationDryness: 88, source: 'copernicus' }),
+    })
+
+    expect(first.fuelSource).toBe('mock')
+    expect(second.fuelSource).toBe('copernicus')
+    expect(second.fuel.vegetationDryness).toBe(88)
+  })
+
   it('caches Copernicus fuel together with default weather and terrain', async () => {
     process.env.WEATHER_PROVIDER = 'open-meteo'
     process.env.CDSE_ACCESS_TOKEN = 'test-token'
