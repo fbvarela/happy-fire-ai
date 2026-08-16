@@ -6,13 +6,25 @@ describe('WorldPop population provider', () => {
   it('queries a local polygon and returns total population', async () => {
     const provider = createWorldPopPopulationProvider(async (input) => {
       const url = new URL(input.toString())
-      const geometry = JSON.parse(url.searchParams.get('geojson') ?? '{}') as { type?: string }
+       const geometry = JSON.parse(url.searchParams.get('geojson') ?? '{}') as {
+         type?: string
+         features?: Array<{ geometry?: { coordinates?: number[][][] } }>
+       }
 
       expect(url.pathname).toBe('/v1/services/stats')
       expect(url.searchParams.get('dataset')).toBe('wpgppop')
       expect(url.searchParams.get('year')).toBe('2020')
-      expect(url.searchParams.get('runasync')).toBe('false')
-      expect(geometry.type).toBe('FeatureCollection')
+       expect(url.searchParams.get('runasync')).toBe('false')
+       expect(geometry.type).toBe('FeatureCollection')
+       const coordinates = geometry.features?.[0]?.geometry?.coordinates?.[0] ?? []
+       expect(coordinates).toHaveLength(5)
+       expect(coordinates[0]).toEqual(coordinates[4])
+       for (const [longitude, latitude] of coordinates) {
+         expect(longitude).toBeGreaterThanOrEqual(-180)
+         expect(longitude).toBeLessThanOrEqual(180)
+         expect(latitude).toBeGreaterThanOrEqual(-90)
+         expect(latitude).toBeLessThanOrEqual(90)
+       }
 
       return new Response(JSON.stringify({
         status: 'finished',
@@ -54,5 +66,59 @@ describe('WorldPop population provider', () => {
     }), 1)
 
     await expect(provider.getNearbyPeople(43.35, -2.84)).rejects.toThrow()
+  })
+
+  it('polls a created task until it finishes', async () => {
+    const requests: URL[] = []
+    const provider = createWorldPopPopulationProvider(async (input) => {
+      const url = new URL(input.toString())
+      requests.push(url)
+      return requests.length === 1
+        ? new Response(JSON.stringify({ status: 'created', taskid: 'task-123' }))
+        : new Response(JSON.stringify({ status: 'finished', error: false, data: { total_population: 42 } }))
+    }, 1000, undefined, 1, 100)
+
+    await expect(provider.getNearbyPeople(43.35, -2.84)).resolves.toEqual({ nearbyPeople: 42, source: 'worldpop' })
+    expect(requests[1]?.pathname).toBe('/v1/tasks/task-123')
+  })
+
+  it('rejects a failed task', async () => {
+    const provider = createWorldPopPopulationProvider(async (input) =>
+      new Response(JSON.stringify(new URL(input.toString()).pathname.endsWith('/stats')
+        ? { status: 'created', taskid: 'task-123' }
+        : { status: 'failed', error: true })), 1000, undefined, 1, 100)
+
+    await expect(provider.getNearbyPeople(43.35, -2.84)).rejects.toThrow('WorldPop task failed')
+  })
+
+  it('bounds task polling time', async () => {
+    const provider = createWorldPopPopulationProvider(async () =>
+      new Response(JSON.stringify({ status: 'created', taskid: 'task-123' })), 1000, undefined, 1, 2)
+
+    await expect(provider.getNearbyPeople(43.35, -2.84)).rejects.toThrow('WorldPop task polling timed out')
+  })
+
+  it('keeps polygon coordinates valid at poles and across the dateline', async () => {
+    const geometries: Array<{ coordinates: number[][][] }> = []
+    const provider = createWorldPopPopulationProvider(async (input) => {
+      const url = new URL(input.toString())
+      if (url.pathname.endsWith('/stats')) {
+        const geometry = JSON.parse(url.searchParams.get('geojson') ?? '{}') as { features: Array<{ geometry: { coordinates: number[][][] } }> }
+        geometries.push(geometry.features[0].geometry)
+      }
+      return new Response(JSON.stringify({ status: 'finished', error: false, data: { total_population: 1 } }))
+    })
+
+    await provider.getNearbyPeople(90, 180)
+    await provider.getNearbyPeople(-90, -180)
+
+    for (const geometry of geometries) {
+      for (const [longitude, latitude] of geometry.coordinates[0]) {
+        expect(longitude).toBeGreaterThanOrEqual(-180)
+        expect(longitude).toBeLessThanOrEqual(180)
+        expect(latitude).toBeGreaterThanOrEqual(-90)
+        expect(latitude).toBeLessThanOrEqual(90)
+      }
+    }
   })
 })

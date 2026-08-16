@@ -232,6 +232,7 @@ export const getEnvironmentContext = async (
     let exposureSource: EnvironmentalContext['exposureSource'] = 'mock'
     let exposureWarning: string | undefined
     if (configuredPopulation) {
+      const populationStartedAt = Date.now()
       try {
         const populationResult = await configuredPopulation.getNearbyPeople(latitude, longitude)
         if (populationResult.source !== 'worldpop' || !isNumber(populationResult.nearbyPeople) || populationResult.nearbyPeople < 0) {
@@ -239,11 +240,15 @@ export const getEnvironmentContext = async (
         }
         exposure = { nearbyPeople: populationResult.nearbyPeople }
         exposureSource = 'worldpop'
+        console.info('[environment] population-fetch', JSON.stringify({
+          status: 'worldpop',
+          durationMs: Date.now() - populationStartedAt,
+        }))
       } catch (error) {
         exposureWarning = 'WorldPop population data was unavailable; deterministic mock exposure is shown.'
         console.warn('[environment] population-fetch-failed', JSON.stringify({
-          latitude,
-          longitude,
+          status: 'fallback',
+          durationMs: Date.now() - populationStartedAt,
           error: error instanceof Error ? error.message : 'unknown error',
         }))
       }

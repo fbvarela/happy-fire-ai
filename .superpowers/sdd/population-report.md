@@ -24,3 +24,18 @@
 
 - No dependency was added.
 - The unrelated pre-existing `.idea/` worktree item was not modified.
+
+## Review follow-up
+
+- Added WorldPop `created` task polling through `/v1/tasks/{taskid}` with finished/failed validation and bounded interval/total polling time.
+- Preserved direct finished responses.
+- Reworked the query polygon to an approximately 1 km radius window with latitude clamping, dateline-safe longitude normalization, and valid coordinate bounds, including pole coverage tests.
+- Removed precise coordinates from population fetch logs; logs retain status and duration.
+
+## Follow-up Verification
+
+- Focused tests: 39 passed.
+- Full tests: 68 passed.
+- TypeScript: `npx tsc --noEmit` passed.
+- Vercel build: `npm run build` passed.
+- `git diff --check` passed.
