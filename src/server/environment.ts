@@ -197,13 +197,15 @@ export const getEnvironmentContext = async (
     if (!isWeatherResult(result)) throw new Error('Invalid provider weather')
     let terrain = fallback.terrain
     if (weatherProvider?.getTerrain) {
+      const terrainStartedAt = Date.now()
       try {
         const terrainResult: unknown = await weatherProvider.getTerrain(latitude, longitude)
         if (isTerrainResult(terrainResult)) terrain = terrainResult.terrain
       } catch (error) {
         console.warn('[environment] terrain-fetch-failed', JSON.stringify({
-          latitude,
-          longitude,
+          durationMs: Date.now() - terrainStartedAt,
+          source: 'open-meteo',
+          status: 'fallback',
           error: error instanceof Error ? error.message : 'unknown error',
         }))
       }
@@ -212,6 +214,7 @@ export const getEnvironmentContext = async (
     let fuelSource: EnvironmentalContext['fuelSource'] = 'mock'
     let fuelWarning: string | undefined
     if (configuredLandCover) {
+      const fuelStartedAt = Date.now()
       try {
         const fuelResult = await configuredLandCover.getVegetationDryness(latitude, longitude)
         if (fuelResult.source !== 'copernicus' || !isNumber(fuelResult.vegetationDryness) || fuelResult.vegetationDryness < 0 || fuelResult.vegetationDryness > 100) {
@@ -222,8 +225,9 @@ export const getEnvironmentContext = async (
       } catch (error) {
         fuelWarning = 'Copernicus land-cover data was unavailable; deterministic mock fuel is shown.'
         console.warn('[environment] landcover-fetch-failed', JSON.stringify({
-          latitude,
-          longitude,
+          durationMs: Date.now() - fuelStartedAt,
+          source: 'copernicus',
+          status: 'fallback',
           error: error instanceof Error ? error.message : 'unknown error',
         }))
       }

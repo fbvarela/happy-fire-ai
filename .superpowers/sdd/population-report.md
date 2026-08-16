@@ -20,6 +20,19 @@
 - Vercel build: `npm run build` passed.
 - `git diff --check` passed.
 
+## Antimeridian and Log Follow-up
+
+- WorldPop rejects normalized longitudes within 0.5 degrees of either antimeridian edge before constructing a wrapping polygon; ordinary 1 km windows remain unchanged.
+- Terrain and land-cover failure logs now omit precise coordinates and retain source, fallback status, duration, and error details.
+
+## Latest Verification
+
+- Focused tests: 41 passed.
+- Full tests: 70 passed.
+- TypeScript: `npx tsc --noEmit` passed.
+- Vercel build: `npm run build` passed.
+- `git diff --check` passed.
+
 ## Latest Review Follow-up
 
 - WorldPop rejects non-finite coordinates and locations with absolute latitude at or above 89.5 degrees before constructing the local window; valid near-pole and dateline coordinates remain covered by regression tests.

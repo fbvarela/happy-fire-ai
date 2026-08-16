@@ -33,6 +33,9 @@ const polygonAround = (latitude: number, longitude: number) => {
   }
   const boundedLatitude = clampLatitude(latitude)
   const boundedLongitude = normalizeLongitude(longitude)
+  if (Math.abs(boundedLongitude) >= 179.5) {
+    throw new Error('WorldPop local window is unavailable near the antimeridian')
+  }
   const radiusKm = 1
   const metersPerDegree = 111_320
   const latitudeOffset = radiusKm * 1000 / metersPerDegree

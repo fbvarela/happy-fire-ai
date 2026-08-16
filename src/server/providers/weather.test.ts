@@ -332,6 +332,7 @@ describe('getEnvironmentContext', () => {
   })
 
   it('keeps live weather and terrain when land-cover fuel fails', async () => {
+    const logSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const provider: WeatherProvider & { sourceTimestamp: string } = {
       sourceTimestamp: new Date().toISOString(),
       getWeather: async () => ({ weather }),
@@ -346,6 +347,9 @@ describe('getEnvironmentContext', () => {
     expect(context.fuelSource).toBe('mock')
     expect(context.fuelWarning).toContain('Copernicus')
     expect(context.status).toBe('available')
+    const log = logSpy.mock.calls.find(([event]) => event === '[environment] landcover-fetch-failed')
+    expect(JSON.parse(String(log?.[1]))).not.toHaveProperty('latitude')
+    expect(JSON.parse(String(log?.[1]))).not.toHaveProperty('longitude')
   })
 
   it('keeps live weather and fuel when WorldPop exposure fails', async () => {
@@ -447,6 +451,7 @@ describe('getEnvironmentContext', () => {
   })
 
   it('falls back to deterministic mock terrain when provider terrain is unavailable', async () => {
+    const logSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const provider: WeatherProvider & { sourceTimestamp: string } = {
       sourceTimestamp: '2026-08-15T12:00:00.000Z',
       getWeather: async () => ({ weather }),
@@ -457,6 +462,9 @@ describe('getEnvironmentContext', () => {
 
     expect(context.terrain).toEqual({ slopeDeg: 0, elevationM: 120 })
     expect(context.weather).toEqual(weather)
+    const log = logSpy.mock.calls.find(([event]) => event === '[environment] terrain-fetch-failed')
+    expect(JSON.parse(String(log?.[1]))).not.toHaveProperty('latitude')
+    expect(JSON.parse(String(log?.[1]))).not.toHaveProperty('longitude')
   })
 
   it('marks a provider timestamp stale when it exceeds the freshness threshold', async () => {

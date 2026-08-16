@@ -109,8 +109,8 @@ describe('WorldPop population provider', () => {
       return new Response(JSON.stringify({ status: 'finished', error: false, data: { total_population: 1 } }))
     })
 
-    await provider.getNearbyPeople(89.4, 179.999)
-    await provider.getNearbyPeople(-89.4, -179.999)
+    await provider.getNearbyPeople(89.4, 170)
+    await provider.getNearbyPeople(-89.4, -170)
 
     for (const geometry of geometries) {
       for (const [longitude, latitude] of geometry.coordinates[0]) {
@@ -131,6 +131,19 @@ describe('WorldPop population provider', () => {
 
     await expect(provider.getNearbyPeople(89.5, 0)).rejects.toThrow('WorldPop local window is unavailable near the poles')
     await expect(provider.getNearbyPeople(-90, 0)).rejects.toThrow('WorldPop local window is unavailable near the poles')
+    expect(calls).toBe(0)
+  })
+
+  it('rejects locations too close to the antimeridian before requesting a wrapping window', async () => {
+    let calls = 0
+    const provider = createWorldPopPopulationProvider(async () => {
+      calls += 1
+      return new Response(JSON.stringify({ status: 'finished', error: false, data: { total_population: 1 } }))
+    })
+
+    await expect(provider.getNearbyPeople(43, 179.5)).rejects.toThrow('WorldPop local window is unavailable near the antimeridian')
+    await expect(provider.getNearbyPeople(43, -179.5)).rejects.toThrow('WorldPop local window is unavailable near the antimeridian')
+    await expect(provider.getNearbyPeople(43, 180)).rejects.toThrow('WorldPop local window is unavailable near the antimeridian')
     expect(calls).toBe(0)
   })
 })
