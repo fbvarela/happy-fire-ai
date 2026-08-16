@@ -26,8 +26,12 @@ const tokenCache = new Map<string, TokenCacheEntry>()
 
 const isFraction = (value: unknown): value is number =>
   typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 100
+const validClassifications = new Set([
+  20, 30, 40, 50, 60, 70, 80, 90, 100, 200,
+  111, 112, 113, 114, 115, 116, 121, 122, 123, 124, 125, 126,
+])
 const isClassification = (value: unknown): value is number =>
-  typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 200
+  typeof value === 'number' && validClassifications.has(value)
 
 const evalscript = `//VERSION=3
 function setup() {
@@ -44,7 +48,7 @@ const decodeGeoTiff: LandCoverDecoder = async (buffer) => {
   const tiff = await fromArrayBuffer(buffer)
   const image = await tiff.getImage()
   const values = await image.readRasters({ interleave: true })
-  return Array.from(values as ArrayLike<number>).slice(0, 5)
+  return Array.from(values as ArrayLike<number>)
 }
 
 const drynessByClassification = (classification: number) => {

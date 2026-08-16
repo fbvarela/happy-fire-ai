@@ -60,6 +60,12 @@ describe('Copernicus land-cover provider', () => {
     })
   })
 
+  it('rejects unknown discrete classifications', async () => {
+    const provider = createCopernicusLandCoverProvider({ accessToken: 'test-token', decoder: async () => [0, 0, 0, 0, 0, 999] }, async () => new Response(new ArrayBuffer(0)))
+
+    await expect(provider.getVegetationDryness(40, -3)).rejects.toThrow('Invalid Copernicus land-cover response')
+  })
+
   it('retrieves and reuses a short-lived client-credentials token', async () => {
     let tokenCalls = 0
     let processCalls = 0
