@@ -23,6 +23,8 @@ export type EnvironmentalContext = {
   fuel: {
     vegetationDryness: number | null
   }
+  fuelSource: 'mock' | 'copernicus'
+  fuelWarning?: string
   exposure: {
     nearbyPeople: number | null
   }

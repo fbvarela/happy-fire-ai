@@ -1,6 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 
 import type { EnvironmentalContext } from '../domain/environment'
+import { createCopernicusLandCoverProvider, type LandCoverProvider } from './providers/landcover'
 import { createOpenMeteoWeatherProvider, type WeatherProvider } from './providers/weather'
 
 type Coordinates = {
@@ -16,6 +17,10 @@ const cacheMaxEntries = 32
 const weatherCache = new Map<string, {
   weather: EnvironmentalContext['weather']
   terrain: EnvironmentalContext['terrain']
+  fuel: EnvironmentalContext['fuel']
+  fuelSource: EnvironmentalContext['fuelSource']
+  fuelWarning?: string
+  source: EnvironmentalContext['source']
   sourceTimestamp: string
   expiresAt: number
 }>()
@@ -98,6 +103,7 @@ const getMockContext = (latitude: number, longitude: number): EnvironmentalConte
     fuel: {
       vegetationDryness: Math.round((35 + latitudeSignal * 55) * 10) / 10,
     },
+    fuelSource: 'mock',
     exposure: {
       nearbyPeople: 400 + Math.round(longitudeSignal * 4000),
     },
@@ -109,13 +115,23 @@ export const getEnvironmentContext = async (
   latitude: number,
   longitude: number,
   provider?: WeatherProvider & { sourceTimestamp?: string },
+  landCoverProvider?: LandCoverProvider,
 ): Promise<EnvironmentalContext> => {
   validateCoordinates({ latitude, longitude })
   const fallback = getMockContext(latitude, longitude)
   const weatherProvider = provider ?? (process.env.WEATHER_PROVIDER === 'open-meteo'
     ? createOpenMeteoWeatherProvider()
     : undefined)
-  if (!weatherProvider) return fallback
+  const configuredLandCover = landCoverProvider ?? (
+    process.env.CDSE_ACCESS_TOKEN || (process.env.CDSE_CLIENT_ID && process.env.CDSE_CLIENT_SECRET)
+      ? createCopernicusLandCoverProvider({
+          accessToken: process.env.CDSE_ACCESS_TOKEN,
+          clientId: process.env.CDSE_CLIENT_ID,
+          clientSecret: process.env.CDSE_CLIENT_SECRET,
+        })
+      : undefined
+  )
+  if (!weatherProvider && !configuredLandCover) return fallback
 
   const cacheEnabled = provider === undefined
   const cacheKey = getCacheKey(latitude, longitude)
@@ -137,19 +153,24 @@ export const getEnvironmentContext = async (
         ...fallback,
         weather: cached.weather,
         terrain: cached.terrain,
+        fuel: cached.fuel,
+        fuelSource: cached.fuelSource,
+        fuelWarning: cached.fuelWarning,
         observedAt: cached.sourceTimestamp,
         status: getFreshnessStatus(cached.sourceTimestamp),
-        source: 'open-meteo',
+        source: cached.source,
         cacheStatus: 'hit',
       }
     }
   }
 
   try {
-    const result: unknown = await weatherProvider.getWeather(latitude, longitude)
+    const result: unknown = weatherProvider
+      ? await weatherProvider.getWeather(latitude, longitude)
+      : { weather: fallback.weather }
     if (!isWeatherResult(result)) throw new Error('Invalid provider weather')
     let terrain = fallback.terrain
-    if (weatherProvider.getTerrain) {
+    if (weatherProvider?.getTerrain) {
       try {
         const terrainResult: unknown = await weatherProvider.getTerrain(latitude, longitude)
         if (isTerrainResult(terrainResult)) terrain = terrainResult.terrain
@@ -161,7 +182,27 @@ export const getEnvironmentContext = async (
         }))
       }
     }
-    const sourceTimestamp = weatherProvider.sourceTimestamp ?? new Date().toISOString()
+    let fuel = fallback.fuel
+    let fuelSource: EnvironmentalContext['fuelSource'] = 'mock'
+    let fuelWarning: string | undefined
+    if (configuredLandCover) {
+      try {
+        const fuelResult = await configuredLandCover.getVegetationDryness(latitude, longitude)
+        if (fuelResult.source !== 'copernicus' || !isNumber(fuelResult.vegetationDryness) || fuelResult.vegetationDryness < 0 || fuelResult.vegetationDryness > 100) {
+          throw new Error('Invalid provider fuel')
+        }
+        fuel = { vegetationDryness: fuelResult.vegetationDryness }
+        fuelSource = 'copernicus'
+      } catch (error) {
+        fuelWarning = 'Copernicus land-cover data was unavailable; deterministic mock fuel is shown.'
+        console.warn('[environment] landcover-fetch-failed', JSON.stringify({
+          latitude,
+          longitude,
+          error: error instanceof Error ? error.message : 'unknown error',
+        }))
+      }
+    }
+    const sourceTimestamp = weatherProvider?.sourceTimestamp ?? new Date().toISOString()
     const sourceTime = Date.parse(sourceTimestamp)
     if (Number.isNaN(sourceTime)) throw new Error('Invalid provider timestamp')
     if (cacheEnabled) {
@@ -174,6 +215,10 @@ export const getEnvironmentContext = async (
       weatherCache.set(cacheKey, {
         weather: result.weather,
         terrain,
+        fuel,
+        fuelSource,
+        fuelWarning,
+        source: weatherProvider ? 'open-meteo' : 'mock',
         sourceTimestamp,
         expiresAt: now + cacheTtlMs,
       })
@@ -182,15 +227,18 @@ export const getEnvironmentContext = async (
       latitude,
       longitude,
       durationMs: Date.now() - startedAt,
-      source: 'open-meteo',
+      source: weatherProvider ? 'open-meteo' : 'mock',
     })
     return {
       ...fallback,
       weather: result.weather,
       terrain,
+      fuel,
+      fuelSource,
+      fuelWarning,
       observedAt: sourceTimestamp,
       status: getFreshnessStatus(sourceTimestamp),
-      source: 'open-meteo',
+      source: weatherProvider ? 'open-meteo' : 'mock',
       cacheStatus: 'miss',
     }
   } catch (error) {

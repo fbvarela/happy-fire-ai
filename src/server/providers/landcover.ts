@@ -1,0 +1,84 @@
+export interface LandCoverProvider {
+  getVegetationDryness(latitude: number, longitude: number): Promise<{ vegetationDryness: number; source: 'copernicus' }>
+}
+
+type CopernicusOptions = {
+  accessToken?: string
+  clientId?: string
+  clientSecret?: string
+  fetcher?: typeof fetch
+  timeoutMs?: number
+}
+
+type TokenCacheEntry = { token: string; expiresAt: number }
+
+const processUrl = 'https://sh.dataspace.copernicus.eu/api/v1/process'
+const tokenUrl = 'https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token'
+const collection = 'byoc-35fecfec-8a73-4723-bb08-b775f283a535'
+const tokenCache = new Map<string, TokenCacheEntry>()
+
+const isFraction = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 100
+
+const evalscript = `//VERSION=3
+function setup() {
+  return {
+    input: [{ bands: ['Tree_Cover_Fraction', 'Shrub_Cover_Fraction', 'Grass_Cover_Fraction', 'Crops_Cover_Fraction', 'Bare_Cover_Fraction'] }],
+    output: { bands: 5, sampleType: 'FLOAT32' }
+  }
+}
+function evaluatePixel(sample) {
+  return [sample.Tree_Cover_Fraction, sample.Shrub_Cover_Fraction, sample.Grass_Cover_Fraction, sample.Crops_Cover_Fraction, sample.Bare_Cover_Fraction]
+}`
+
+const getToken = async (options: CopernicusOptions, fetcher: typeof fetch, timeoutMs: number) => {
+  if (options.accessToken) return options.accessToken
+  if (!options.clientId || !options.clientSecret) throw new Error('Copernicus credentials are missing')
+  const cached = tokenCache.get(options.clientId)
+  if (cached && cached.expiresAt > Date.now()) return cached.token
+
+  const response = await fetcher(tokenUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ grant_type: 'client_credentials', client_id: options.clientId, client_secret: options.clientSecret }),
+    signal: AbortSignal.timeout(timeoutMs),
+  })
+  if (!response.ok) throw new Error(`Copernicus token request failed (${response.status})`)
+  const payload = await response.json() as { access_token?: unknown; expires_in?: unknown }
+  if (typeof payload.access_token !== 'string' || !payload.access_token) throw new Error('Invalid Copernicus token response')
+  const expiresIn = typeof payload.expires_in === 'number' && Number.isFinite(payload.expires_in) ? payload.expires_in : 300
+  tokenCache.set(options.clientId, { token: payload.access_token, expiresAt: Date.now() + Math.max(1, expiresIn - 30) * 1000 })
+  return payload.access_token
+}
+
+export const clearCopernicusTokenCache = () => tokenCache.clear()
+
+export function createCopernicusLandCoverProvider(tokenOrOptions: string | CopernicusOptions = {}, fetcher: typeof fetch = fetch, timeoutMs = 10_000): LandCoverProvider {
+  const options = typeof tokenOrOptions === 'string' ? { accessToken: tokenOrOptions } : tokenOrOptions
+  const requestFetcher = options.fetcher ?? fetcher
+  const requestTimeoutMs = options.timeoutMs ?? timeoutMs
+
+  return {
+    async getVegetationDryness(latitude, longitude) {
+      const token = await getToken(options, requestFetcher, requestTimeoutMs)
+      const response = await requestFetcher(processUrl, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        signal: AbortSignal.timeout(requestTimeoutMs),
+        body: JSON.stringify({
+          input: { bounds: { bbox: [longitude, latitude, longitude, latitude] }, data: [{ type: collection }] },
+          output: { width: 1, height: 1, responses: [{ identifier: 'default', format: { type: 'application/json' } }] },
+          evalscript,
+        }),
+      })
+      if (!response.ok) throw new Error(`Copernicus process request failed (${response.status})`)
+      const payload = await response.json() as { data?: Array<{ bands?: unknown }> }
+      const bands = payload.data?.[0]?.bands
+      if (!Array.isArray(bands) || bands.length !== 5 || !bands.every(isFraction)) throw new Error('Invalid Copernicus land-cover response')
+      const [tree, shrub, grass, crops, bare] = bands
+      // Dryness is a weighted fuel-potential score: tree .8, shrub .8, grass .9, crops .6, bare .1.
+      const vegetationDryness = Math.round((tree * 0.8 + shrub * 0.8 + grass * 0.9 + crops * 0.6 + bare * 0.1) * 10) / 10
+      return { vegetationDryness, source: 'copernicus' }
+    },
+  }
+}

@@ -1,5 +1,5 @@
 import type { EnvironmentalContext } from '../domain/environment'
-import { formatContextValue, formatObservedAt, formatSource } from '../domain/environmentDisplay'
+import { formatContextValue, formatFuelSource, formatObservedAt, formatSource } from '../domain/environmentDisplay'
 import type { RiskResult } from '../domain/risk'
 
 type RiskSummaryProps = {
@@ -55,6 +55,7 @@ export function RiskSummary({ result, context }: RiskSummaryProps) {
         <div><dt>Model</dt><dd>{result.modelVersion}</dd></div>
         <div><dt>Observed</dt><dd>{observedAt}</dd></div>
         <div><dt>Source</dt><dd>{formatSource(context.source)}</dd></div>
+        <div><dt>Fuel source</dt><dd>{formatFuelSource(context.fuelSource)}</dd></div>
         <div><dt>Cache</dt><dd>{context.cacheStatus}</dd></div>
       </dl>
 
@@ -81,6 +82,9 @@ export function RiskSummary({ result, context }: RiskSummaryProps) {
         <p className="data-warning" role="status">
           The weather provider failed, so mock fallback data is shown. Treat this estimate as unavailable until live data is restored.
         </p>
+      )}
+      {context.fuelSource === 'mock' && context.fuelWarning && (
+        <p className="data-warning" role="status">{context.fuelWarning}</p>
       )}
 
       <div className="factor-section">
