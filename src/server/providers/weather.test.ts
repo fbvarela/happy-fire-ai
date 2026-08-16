@@ -180,6 +180,8 @@ describe('getEnvironmentContext', () => {
     delete process.env.CDSE_ACCESS_TOKEN
     delete process.env.CDSE_CLIENT_ID
     delete process.env.CDSE_CLIENT_SECRET
+    delete process.env.WORLDPOP_ENABLED
+    delete process.env.WORLDPOP_API_KEY
   })
 
   afterEach(() => {
@@ -188,6 +190,8 @@ describe('getEnvironmentContext', () => {
     delete process.env.CDSE_ACCESS_TOKEN
     delete process.env.CDSE_CLIENT_ID
     delete process.env.CDSE_CLIENT_SECRET
+    delete process.env.WORLDPOP_ENABLED
+    delete process.env.WORLDPOP_API_KEY
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
   })
@@ -336,6 +340,52 @@ describe('getEnvironmentContext', () => {
     expect(context.fuelSource).toBe('mock')
     expect(context.fuelWarning).toContain('Copernicus')
     expect(context.status).toBe('available')
+  })
+
+  it('keeps live weather and fuel when WorldPop exposure fails', async () => {
+    const provider: WeatherProvider & { sourceTimestamp: string } = {
+      sourceTimestamp: new Date().toISOString(),
+      getWeather: async () => ({ weather }),
+    }
+    const landCoverProvider = {
+      getVegetationDryness: async () => ({ vegetationDryness: 73, source: 'copernicus' as const }),
+    }
+    const populationProvider = {
+      getNearbyPeople: async () => { throw new Error('WorldPop offline') },
+    }
+
+    const context = await getEnvironmentContext(43, -6, provider, landCoverProvider, populationProvider)
+
+    expect(context.weather).toEqual(weather)
+    expect(context.fuelSource).toBe('copernicus')
+    expect(context.exposureSource).toBe('mock')
+    expect(context.exposureWarning).toContain('WorldPop')
+  })
+
+  it('caches population with live weather and fuel', async () => {
+    process.env.WEATHER_PROVIDER = 'open-meteo'
+    const fetcher = vi.fn((input: Request | URL | string) => {
+      const url = new URL(input.toString())
+      if (url.pathname.endsWith('/elevation')) return Promise.resolve(openMeteoTerrainResponse())
+      if (url.pathname.endsWith('/stats')) return Promise.resolve(new Response(JSON.stringify({
+        status: 'finished', error: false, data: { total_population: 321 },
+      })))
+      return Promise.resolve(openMeteoResponse())
+    })
+    vi.stubGlobal('fetch', fetcher)
+    process.env.WORLDPOP_ENABLED = 'true'
+    const landCoverProvider = {
+      getVegetationDryness: async () => ({ vegetationDryness: 73, source: 'copernicus' as const }),
+    }
+
+    const first = await getEnvironmentContext(41, -4, undefined, landCoverProvider)
+    const second = await getEnvironmentContext(41, -4, undefined, landCoverProvider)
+
+    expect(first.exposure).toEqual({ nearbyPeople: 321 })
+    expect(second.exposure).toEqual(first.exposure)
+    expect(second.exposureSource).toBe('worldpop')
+    expect(second.cacheStatus).toBe('hit')
+    expect(fetcher.mock.calls.filter(([input]) => new URL(input.toString()).pathname.endsWith('/stats'))).toHaveLength(1)
   })
 
   it('does not reuse mock cache entries when land-cover becomes configured', async () => {

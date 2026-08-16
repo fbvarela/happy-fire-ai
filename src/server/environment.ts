@@ -3,6 +3,7 @@ import { createServerFn } from '@tanstack/react-start'
 import type { EnvironmentalContext } from '../domain/environment'
 import { createCopernicusLandCoverProvider, type LandCoverProvider } from './providers/landcover'
 import { createOpenMeteoWeatherProvider, type WeatherProvider } from './providers/weather'
+import { createWorldPopPopulationProvider, type PopulationProvider } from './providers/population'
 
 type Coordinates = {
   latitude: number
@@ -20,6 +21,9 @@ const weatherCache = new Map<string, {
   fuel: EnvironmentalContext['fuel']
   fuelSource: EnvironmentalContext['fuelSource']
   fuelWarning?: string
+  exposure: EnvironmentalContext['exposure']
+  exposureSource: EnvironmentalContext['exposureSource']
+  exposureWarning?: string
   source: EnvironmentalContext['source']
   sourceTimestamp: string
   expiresAt: number
@@ -54,7 +58,8 @@ const getCacheKey = (
   longitude: number,
   weatherEnabled: boolean,
   landCoverEnabled: boolean,
-) => `${latitude},${longitude}:${weatherEnabled ? 'live' : 'mock'}:${landCoverEnabled ? 'live' : 'mock'}`
+  populationEnabled: boolean,
+) => `${latitude},${longitude}:${weatherEnabled ? 'live' : 'mock'}:${landCoverEnabled ? 'live' : 'mock'}:${populationEnabled ? 'live' : 'mock'}`
 
 const pruneWeatherCache = (now: number) => {
   for (const [key, entry] of weatherCache) {
@@ -109,6 +114,7 @@ const getMockContext = (latitude: number, longitude: number): EnvironmentalConte
       vegetationDryness: Math.round((35 + latitudeSignal * 55) * 10) / 10,
     },
     fuelSource: 'mock',
+    exposureSource: 'mock',
     exposure: {
       nearbyPeople: 400 + Math.round(longitudeSignal * 4000),
     },
@@ -121,6 +127,7 @@ export const getEnvironmentContext = async (
   longitude: number,
   provider?: WeatherProvider & { sourceTimestamp?: string },
   landCoverProvider?: LandCoverProvider,
+  populationProvider?: PopulationProvider,
 ): Promise<EnvironmentalContext> => {
   validateCoordinates({ latitude, longitude })
   const fallback = getMockContext(latitude, longitude)
@@ -136,7 +143,12 @@ export const getEnvironmentContext = async (
         })
       : undefined
   )
-  if (!weatherProvider && !configuredLandCover) return fallback
+  const configuredPopulation = populationProvider ?? (
+    process.env.WORLDPOP_ENABLED === 'true' || process.env.WORLDPOP_API_KEY
+      ? createWorldPopPopulationProvider()
+      : undefined
+  )
+  if (!weatherProvider && !configuredLandCover && !configuredPopulation) return fallback
 
   const cacheEnabled = provider === undefined
   const cacheKey = getCacheKey(
@@ -144,6 +156,7 @@ export const getEnvironmentContext = async (
     longitude,
     weatherProvider !== undefined,
     configuredLandCover !== undefined,
+    configuredPopulation !== undefined,
   )
   const startedAt = Date.now()
   if (cacheEnabled) {
@@ -166,6 +179,9 @@ export const getEnvironmentContext = async (
         fuel: cached.fuel,
         fuelSource: cached.fuelSource,
         fuelWarning: cached.fuelWarning,
+        exposure: cached.exposure,
+        exposureSource: cached.exposureSource,
+        exposureWarning: cached.exposureWarning,
         observedAt: cached.sourceTimestamp,
         status: getFreshnessStatus(cached.sourceTimestamp),
         source: cached.source,
@@ -212,6 +228,26 @@ export const getEnvironmentContext = async (
         }))
       }
     }
+    let exposure = fallback.exposure
+    let exposureSource: EnvironmentalContext['exposureSource'] = 'mock'
+    let exposureWarning: string | undefined
+    if (configuredPopulation) {
+      try {
+        const populationResult = await configuredPopulation.getNearbyPeople(latitude, longitude)
+        if (populationResult.source !== 'worldpop' || !isNumber(populationResult.nearbyPeople) || populationResult.nearbyPeople < 0) {
+          throw new Error('Invalid provider population')
+        }
+        exposure = { nearbyPeople: populationResult.nearbyPeople }
+        exposureSource = 'worldpop'
+      } catch (error) {
+        exposureWarning = 'WorldPop population data was unavailable; deterministic mock exposure is shown.'
+        console.warn('[environment] population-fetch-failed', JSON.stringify({
+          latitude,
+          longitude,
+          error: error instanceof Error ? error.message : 'unknown error',
+        }))
+      }
+    }
     const sourceTimestamp = weatherProvider?.sourceTimestamp ?? new Date().toISOString()
     const sourceTime = Date.parse(sourceTimestamp)
     if (Number.isNaN(sourceTime)) throw new Error('Invalid provider timestamp')
@@ -228,6 +264,9 @@ export const getEnvironmentContext = async (
         fuel,
         fuelSource,
         fuelWarning,
+        exposure,
+        exposureSource,
+        exposureWarning,
         source: weatherProvider ? 'open-meteo' : 'mock',
         sourceTimestamp,
         expiresAt: now + cacheTtlMs,
@@ -246,6 +285,9 @@ export const getEnvironmentContext = async (
       fuel,
       fuelSource,
       fuelWarning,
+      exposure,
+      exposureSource,
+      exposureWarning,
       observedAt: sourceTimestamp,
       status: getFreshnessStatus(sourceTimestamp),
       source: weatherProvider ? 'open-meteo' : 'mock',

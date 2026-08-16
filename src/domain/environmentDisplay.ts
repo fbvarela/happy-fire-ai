@@ -13,3 +13,6 @@ export const formatSource = (source: DataSource) =>
 
 export const formatFuelSource = (source: 'mock' | 'copernicus') =>
   source === 'copernicus' ? 'Copernicus Land Monitoring Service' : 'Deterministic mock (synthetic)'
+
+export const formatExposureSource = (source: 'mock' | 'worldpop') =>
+  source === 'worldpop' ? 'WorldPop' : 'Deterministic mock (synthetic)'
