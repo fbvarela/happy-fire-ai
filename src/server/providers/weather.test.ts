@@ -253,6 +253,12 @@ describe('getEnvironmentContext', () => {
       '[environment] weather-cache-hit',
       expect.stringContaining('"ageMs":7201000'),
     )
+    const fetchLog = logSpy.mock.calls.find(([event]) => event === '[environment] weather-fetch')
+    const cacheLog = logSpy.mock.calls.find(([event]) => event === '[environment] weather-cache-hit')
+    expect(JSON.parse(String(fetchLog?.[1]))).not.toHaveProperty('latitude')
+    expect(JSON.parse(String(fetchLog?.[1]))).not.toHaveProperty('longitude')
+    expect(JSON.parse(String(cacheLog?.[1]))).not.toHaveProperty('latitude')
+    expect(JSON.parse(String(cacheLog?.[1]))).not.toHaveProperty('longitude')
   })
 
   it('restores cached provider terrain on a cache hit', async () => {

@@ -109,8 +109,8 @@ describe('WorldPop population provider', () => {
       return new Response(JSON.stringify({ status: 'finished', error: false, data: { total_population: 1 } }))
     })
 
-    await provider.getNearbyPeople(90, 180)
-    await provider.getNearbyPeople(-90, -180)
+    await provider.getNearbyPeople(89.4, 179.999)
+    await provider.getNearbyPeople(-89.4, -179.999)
 
     for (const geometry of geometries) {
       for (const [longitude, latitude] of geometry.coordinates[0]) {
@@ -120,5 +120,17 @@ describe('WorldPop population provider', () => {
         expect(latitude).toBeLessThanOrEqual(90)
       }
     }
+  })
+
+  it('rejects locations too close to the poles before requesting a local window', async () => {
+    let calls = 0
+    const provider = createWorldPopPopulationProvider(async () => {
+      calls += 1
+      return new Response(JSON.stringify({ status: 'finished', error: false, data: { total_population: 1 } }))
+    })
+
+    await expect(provider.getNearbyPeople(89.5, 0)).rejects.toThrow('WorldPop local window is unavailable near the poles')
+    await expect(provider.getNearbyPeople(-90, 0)).rejects.toThrow('WorldPop local window is unavailable near the poles')
+    expect(calls).toBe(0)
   })
 })

@@ -28,6 +28,9 @@ const getPopulation = (payload: WorldPopResponse) => {
 }
 
 const polygonAround = (latitude: number, longitude: number) => {
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || Math.abs(latitude) >= 89.5) {
+    throw new Error('WorldPop local window is unavailable near the poles')
+  }
   const boundedLatitude = clampLatitude(latitude)
   const boundedLongitude = normalizeLongitude(longitude)
   const radiusKm = 1

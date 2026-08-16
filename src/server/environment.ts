@@ -164,12 +164,12 @@ export const getEnvironmentContext = async (
     const cached = weatherCache.get(cacheKey)
     if (cached) {
       logWeatherEvent('weather-cache-hit', {
-        latitude,
-        longitude,
         ageMs: Math.max(0, startedAt - Date.parse(cached.sourceTimestamp)),
         expiresAt: new Date(cached.expiresAt).toISOString(),
         expiresInMs: Math.max(0, cached.expiresAt - startedAt),
         sourceTimestamp: cached.sourceTimestamp,
+        source: cached.source,
+        status: getFreshnessStatus(cached.sourceTimestamp),
         durationMs: Date.now() - startedAt,
       })
       return {
@@ -278,10 +278,9 @@ export const getEnvironmentContext = async (
       })
     }
     logWeatherEvent('weather-fetch', {
-      latitude,
-      longitude,
       durationMs: Date.now() - startedAt,
       source: weatherProvider ? 'open-meteo' : 'mock',
+      status: getFreshnessStatus(sourceTimestamp),
     })
     return {
       ...fallback,
@@ -300,9 +299,9 @@ export const getEnvironmentContext = async (
     }
   } catch (error) {
     console.warn('[environment] weather-fetch-failed', JSON.stringify({
-      latitude,
-      longitude,
       durationMs: Date.now() - startedAt,
+      source: weatherProvider ? 'open-meteo' : 'mock',
+      status: 'error',
       error: error instanceof Error ? error.message : 'unknown error',
     }))
     return { ...fallback, status: 'error', cacheStatus: 'fallback' }

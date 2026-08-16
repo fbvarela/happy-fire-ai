@@ -20,6 +20,19 @@
 - Vercel build: `npm run build` passed.
 - `git diff --check` passed.
 
+## Latest Review Follow-up
+
+- WorldPop rejects non-finite coordinates and locations with absolute latitude at or above 89.5 degrees before constructing the local window; valid near-pole and dateline coordinates remain covered by regression tests.
+- Shared `weather-fetch`, `weather-cache-hit`, and `weather-fetch-failed` logs no longer include latitude or longitude. They retain duration, source/status, and cache timing metadata.
+
+## Latest Verification
+
+- Focused tests: 40 passed.
+- Full tests: 69 passed.
+- TypeScript: `npx tsc --noEmit` passed.
+- Vercel build: `npm run build` passed.
+- `git diff --check` passed.
+
 ## Notes
 
 - No dependency was added.
