@@ -3,6 +3,7 @@ import { useState } from 'react'
 
 import { LocationForm } from '../components/LocationForm'
 import { FireSimulation } from '../components/FireSimulation'
+import { ExplanationPanel } from '../components/ExplanationPanel'
 import { RiskSummary } from '../components/RiskSummary'
 import type { EnvironmentalContext } from '../domain/environment'
 import { calculateRisk } from '../domain/risk'
@@ -56,6 +57,8 @@ function Home() {
           </ul>
         </article>
       </section>
+
+      {risk && <ExplanationPanel result={risk} />}
 
       <FireSimulation context={context} />
 
