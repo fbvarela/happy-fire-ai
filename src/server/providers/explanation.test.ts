@@ -37,4 +37,26 @@ describe('Cohere explanation provider', () => {
 
     await expect(provider.explain({ score: 10, level: 'low', factors: [] })).rejects.toThrow('Invalid Cohere explanation')
   })
+
+  it('rejects unbounded explanation fields', async () => {
+    const provider = createCohereExplanationProvider('test-key', async () => new Response(JSON.stringify({
+      message: { content: [{ type: 'text', text: JSON.stringify({
+        summary: 'x'.repeat(501),
+        drivers: ['one', 'two', 'three', 'four', 'five', 'six'],
+        caveat: 'ok',
+      }) }] },
+    })))
+
+    await expect(provider.explain({ score: 10, level: 'low', factors: [] })).rejects.toThrow('Invalid Cohere explanation')
+  })
+
+  it('rejects an empty drivers array', async () => {
+    const provider = createCohereExplanationProvider('test-key', async () => new Response(JSON.stringify({
+      message: { content: [{ type: 'text', text: JSON.stringify({
+        summary: 'ok', drivers: [], caveat: 'ok',
+      }) }] },
+    })))
+
+    await expect(provider.explain({ score: 10, level: 'low', factors: [] })).rejects.toThrow('Invalid Cohere explanation')
+  })
 })

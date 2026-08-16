@@ -17,15 +17,19 @@ type CohereResponse = {
 
 const endpoint = 'https://api.cohere.com/v2/chat'
 const model = 'command-a-03-2025'
+const maxTextLength = 500
+const maxDrivers = 5
 
-const isText = (value: unknown): value is string => typeof value === 'string' && value.trim().length > 0
+const isBoundedText = (value: unknown): value is string =>
+  typeof value === 'string' && value.trim().length > 0 && value.length <= maxTextLength
 
 const parseExplanation = (value: unknown): Omit<Explanation, 'source'> => {
   if (!value || typeof value !== 'object') throw new Error('Invalid Cohere explanation')
   const record = value as Record<string, unknown>
   if (Object.keys(record).sort().join(',') !== 'caveat,drivers,summary') throw new Error('Invalid Cohere explanation')
-  if (!isText(record.summary) || !isText(record.caveat) || !Array.isArray(record.drivers) ||
-      !record.drivers.every(isText)) throw new Error('Invalid Cohere explanation')
+  if (!isBoundedText(record.summary) || !isBoundedText(record.caveat) || !Array.isArray(record.drivers) ||
+      record.drivers.length === 0 || record.drivers.length > maxDrivers ||
+      !record.drivers.every(isBoundedText)) throw new Error('Invalid Cohere explanation')
   return { summary: record.summary, drivers: record.drivers, caveat: record.caveat }
 }
 
@@ -51,7 +55,7 @@ export const createCohereExplanationProvider = (
     if (!response.ok) throw new Error(`Cohere request failed (${response.status})`)
     const payload = await response.json() as CohereResponse
     const text = payload.message?.content?.find((part) => part.type === 'text')?.text
-    if (!isText(text)) throw new Error('Invalid Cohere explanation')
+    if (typeof text !== 'string' || text.trim().length === 0) throw new Error('Invalid Cohere explanation')
     try {
       return { ...parseExplanation(JSON.parse(text)), source: 'cohere' }
     } catch {

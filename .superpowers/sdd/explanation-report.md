@@ -17,3 +17,12 @@ Implemented the approved opt-in explanation flow.
 - Diff check: `git diff --check` passed.
 
 The test runner reports an existing 10-second Vite shutdown timeout after successful runs; it does not affect test results.
+
+## Review follow-up
+
+- Explanation state now resets when the score, level, or factor labels change, and stale async responses are ignored.
+- Cohere output is limited to 500-character summary/caveat strings and 1-5 non-empty drivers.
+- The panel exposes `aria-busy` and a polite loading status.
+- Focused provider validation tests cover oversized, over-counted, and empty output.
+
+Follow-up verification: full tests 77 passed, TypeScript passed, Vercel production build passed, and `git diff --check` passed.
