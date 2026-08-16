@@ -90,6 +90,15 @@ h1 { max-width: 680px; margin: 18px 0; color: #f3f7ed; font-size: clamp(42px, 7v
 .simulation-canvas { display: block; width: 100%; height: auto; margin: 22px 0 16px; border: 1px solid #304239; border-radius: 7px; image-rendering: pixelated; }
 .simulation-controls { display: flex; flex-wrap: wrap; gap: 10px; }
 .simulation-assumptions { margin: 16px 0 0; color: #71857a; font: 12px/1.5 'DM Mono', monospace; }
+.explanation-panel { margin-top: 16px; padding: 24px; border: 1px solid #293a31; border-radius: 12px; background: #17221d; }
+.explanation-panel h2 { margin: 4px 0 0; font-size: 22px; font-weight: 500; }
+.explanation-panel .card-kicker { margin: 0; }
+.explanation-panel .muted-copy { margin: 18px 0; }
+.explanation-panel .secondary-button { margin-top: 18px; }
+.explanation-copy { max-width: 700px; color: #dce8dc; font-size: 14px; line-height: 1.5; }
+.explanation-copy ul { padding-left: 20px; }
+.explanation-caveat, .explanation-error { color: #d8c98b; font-size: 13px; }
+.explanation-error { color: #ffad91; }
 
 @media (max-width: 700px) {
   .app-shell { width: min(100% - 32px, 560px); }
