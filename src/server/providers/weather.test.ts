@@ -25,6 +25,9 @@ const openMeteoResponse = (time = '2026-08-15T12:00') => new Response(JSON.strin
     precipitation: [1.2],
   },
 }))
+const openMeteoTerrainResponse = () => new Response(JSON.stringify({ elevation: [100, 100, 100, 100, 100] }))
+const openMeteoFetcher = async (input: Request | URL | string) =>
+  new URL(input.toString()).pathname.endsWith('/elevation') ? openMeteoTerrainResponse() : openMeteoResponse()
 
 describe('Open-Meteo weather provider', () => {
   it('maps rolling hourly precipitation into normalized weather', async () => {
@@ -49,10 +52,76 @@ describe('Open-Meteo weather provider', () => {
     expect(provider.sourceTimestamp).toBe('2026-08-15T12:00:00.000Z')
   })
 
+  it('maps a five-point elevation neighborhood into terrain', async () => {
+    const provider = createOpenMeteoWeatherProvider(async (input) => {
+      const url = new URL(input.toString())
+      if (url.pathname.endsWith('/elevation')) {
+        expect(url.searchParams.get('latitude')?.split(',')).toHaveLength(5)
+        expect(url.searchParams.get('longitude')?.split(',')).toHaveLength(5)
+        return new Response(JSON.stringify({ elevation: [100, 120, 90, 110, 100] }))
+      }
+
+      return new Response(JSON.stringify({
+        current: {
+          time: '2026-08-15T12:00',
+          temperature_2m: 22,
+          relative_humidity_2m: 48,
+          wind_speed_10m: 14,
+          wind_direction_10m: 210,
+        },
+        hourly: { time: ['2026-08-15T12:00'], precipitation: [1] },
+      }))
+    })
+
+    expect(provider.getTerrain).toBeDefined()
+    await expect(provider.getTerrain!(40, -3)).resolves.toMatchObject({
+      terrain: { elevationM: 100 },
+    })
+    const terrain = await provider.getTerrain?.(40, -3)
+    expect(terrain?.terrain.slopeDeg).toBeGreaterThan(0)
+  })
+
+  it.each([
+    [90, 179.999],
+    [-90, -179.999],
+    [0, 180],
+    [0, -180],
+  ])('keeps elevation neighborhoods safe at latitude %s longitude %s', async (latitude, longitude) => {
+    const provider = createOpenMeteoWeatherProvider(async (input) => {
+      const url = new URL(input.toString())
+      if (url.pathname.endsWith('/elevation')) {
+        for (const parameter of ['latitude', 'longitude']) {
+          for (const value of url.searchParams.get(parameter)!.split(',').map(Number)) {
+            expect(value).toBeGreaterThanOrEqual(parameter === 'latitude' ? -90 : -180)
+            expect(value).toBeLessThanOrEqual(parameter === 'latitude' ? 90 : 180)
+          }
+        }
+        return new Response(JSON.stringify({ elevation: [100, 120, 90, 110, 100] }))
+      }
+      return openMeteoResponse()
+    })
+
+    const result = await provider.getTerrain!(latitude, longitude)
+    expect(Number.isFinite(result.terrain.slopeDeg)).toBe(true)
+    expect(result.terrain.slopeDeg).toBeGreaterThanOrEqual(0)
+    expect(result.terrain.slopeDeg).toBeLessThanOrEqual(90)
+  })
+
   it('rejects malformed responses at the provider boundary', async () => {
     const provider = createOpenMeteoWeatherProvider(async () => new Response(JSON.stringify({ current: {} })))
 
     await expect(provider.getWeather(40, -3)).rejects.toThrow('Invalid Open-Meteo response')
+  })
+
+  it('rejects malformed terrain responses at the provider boundary', async () => {
+    const provider = createOpenMeteoWeatherProvider(async (input) => {
+      if (new URL(input.toString()).pathname.endsWith('/elevation')) {
+        return new Response(JSON.stringify({ elevation: [100, 120, Number.NaN, 110, 100] }))
+      }
+      return openMeteoResponse()
+    })
+
+    await expect(provider.getTerrain!(40, -3)).rejects.toThrow('Invalid Open-Meteo terrain response')
   })
 
   it('rejects an invalid hourly timestamp instead of skipping it', async () => {
@@ -116,7 +185,7 @@ describe('getEnvironmentContext', () => {
 
   it('does not share the default Open-Meteo cache with an injected provider', async () => {
     process.env.WEATHER_PROVIDER = 'open-meteo'
-    const fetcher = vi.fn(async () => openMeteoResponse())
+    const fetcher = vi.fn(openMeteoFetcher)
     vi.stubGlobal('fetch', fetcher)
     await getEnvironmentContext(41, -4)
 
@@ -138,13 +207,13 @@ describe('getEnvironmentContext', () => {
 
   it('isolates cached default Open-Meteo responses by coordinates', async () => {
     process.env.WEATHER_PROVIDER = 'open-meteo'
-    const fetcher = vi.fn(async () => openMeteoResponse())
+    const fetcher = vi.fn(openMeteoFetcher)
     vi.stubGlobal('fetch', fetcher)
 
     const first = await getEnvironmentContext(41, -4)
     const second = await getEnvironmentContext(41, -5)
 
-    expect(fetcher).toHaveBeenCalledTimes(2)
+    expect(fetcher.mock.calls.filter(([input]) => !new URL(input.toString()).pathname.endsWith('/elevation'))).toHaveLength(2)
     expect(first.cacheStatus).toBe('miss')
     expect(second.cacheStatus).toBe('miss')
   })
@@ -153,7 +222,10 @@ describe('getEnvironmentContext', () => {
     process.env.WEATHER_PROVIDER = 'open-meteo'
     let now = Date.parse('2026-08-15T12:00:00.000Z')
     vi.spyOn(Date, 'now').mockImplementation(() => now)
-    const fetcher = vi.fn(async () => openMeteoResponse('2026-08-15T10:00'))
+    const fetcher = vi.fn((input: Request | URL | string) =>
+      new URL(input.toString()).pathname.endsWith('/elevation')
+        ? Promise.resolve(openMeteoTerrainResponse())
+        : Promise.resolve(openMeteoResponse('2026-08-15T10:00')))
     vi.stubGlobal('fetch', fetcher)
     const logSpy = vi.spyOn(console, 'info').mockImplementation(() => {})
 
@@ -163,16 +235,33 @@ describe('getEnvironmentContext', () => {
 
     expect(hit.cacheStatus).toBe('hit')
     expect(hit.status).toBe('stale')
-    expect(fetcher).toHaveBeenCalledTimes(1)
+    expect(fetcher.mock.calls.filter(([input]) => !new URL(input.toString()).pathname.endsWith('/elevation'))).toHaveLength(1)
     expect(logSpy).toHaveBeenCalledWith(
       '[environment] weather-cache-hit',
       expect.stringContaining('"ageMs":7201000'),
     )
   })
 
+  it('restores cached provider terrain on a cache hit', async () => {
+    process.env.WEATHER_PROVIDER = 'open-meteo'
+    const fetcher = vi.fn((input: Request | URL | string) =>
+      new URL(input.toString()).pathname.endsWith('/elevation')
+        ? Promise.resolve(new Response(JSON.stringify({ elevation: [900, 900, 900, 900, 900] })))
+        : Promise.resolve(openMeteoResponse()))
+    vi.stubGlobal('fetch', fetcher)
+
+    const first = await getEnvironmentContext(41, -4)
+    const second = await getEnvironmentContext(41, -4)
+
+    expect(first.terrain).toEqual({ elevationM: 900, slopeDeg: 0 })
+    expect(second.terrain).toEqual(first.terrain)
+    expect(second.cacheStatus).toBe('hit')
+    expect(fetcher.mock.calls.filter(([input]) => new URL(input.toString()).pathname.endsWith('/elevation'))).toHaveLength(1)
+  })
+
   it('bounds the default Open-Meteo cache and evicts its oldest coordinate', async () => {
     process.env.WEATHER_PROVIDER = 'open-meteo'
-    const fetcher = vi.fn(async () => openMeteoResponse())
+    const fetcher = vi.fn(openMeteoFetcher)
     vi.stubGlobal('fetch', fetcher)
 
     for (let latitude = 0; latitude < 33; latitude += 1) {
@@ -180,23 +269,26 @@ describe('getEnvironmentContext', () => {
     }
     await getEnvironmentContext(0, 0)
 
-    expect(fetcher).toHaveBeenCalledTimes(34)
+    expect(fetcher.mock.calls.filter(([input]) => !new URL(input.toString()).pathname.endsWith('/elevation'))).toHaveLength(34)
   })
 
   it('refreshes an expired cache entry and falls back when refresh fails', async () => {
     process.env.WEATHER_PROVIDER = 'open-meteo'
     let now = Date.parse('2026-08-15T12:00:00.000Z')
     vi.spyOn(Date, 'now').mockImplementation(() => now)
-    const fetcher = vi.fn()
-      .mockResolvedValueOnce(openMeteoResponse())
-      .mockRejectedValueOnce(new Error('offline'))
+    const fetcher = vi.fn((input: Request | URL | string) => {
+      if (new URL(input.toString()).pathname.endsWith('/elevation')) return Promise.resolve(openMeteoTerrainResponse())
+      return fetcher.mock.calls.length === 1
+        ? Promise.resolve(openMeteoResponse())
+        : Promise.reject(new Error('offline'))
+    })
     vi.stubGlobal('fetch', fetcher)
 
     await getEnvironmentContext(42, -5)
     now += 10 * 60 * 1000 + 1
     const expired = await getEnvironmentContext(42, -5)
 
-    expect(fetcher).toHaveBeenCalledTimes(2)
+    expect(fetcher.mock.calls.filter(([input]) => !new URL(input.toString()).pathname.endsWith('/elevation'))).toHaveLength(2)
     expect(expired.cacheStatus).toBe('fallback')
     expect(expired.status).toBe('error')
   })
@@ -218,6 +310,31 @@ describe('getEnvironmentContext', () => {
       windKph: 8,
       windDirectionDeg: 177,
     })
+  })
+
+  it('uses provider terrain when available', async () => {
+    const provider: WeatherProvider & { sourceTimestamp: string } = {
+      sourceTimestamp: '2026-08-15T12:00:00.000Z',
+      getWeather: async () => ({ weather }),
+      getTerrain: async () => ({ terrain: { elevationM: 900, slopeDeg: 12 } }),
+    }
+
+    const context = await getEnvironmentContext(43, -6, provider)
+
+    expect(context.terrain).toEqual({ elevationM: 900, slopeDeg: 12 })
+  })
+
+  it('falls back to deterministic mock terrain when provider terrain is unavailable', async () => {
+    const provider: WeatherProvider & { sourceTimestamp: string } = {
+      sourceTimestamp: '2026-08-15T12:00:00.000Z',
+      getWeather: async () => ({ weather }),
+      getTerrain: async () => { throw new Error('terrain offline') },
+    }
+
+    const context = await getEnvironmentContext(43, -6, provider)
+
+    expect(context.terrain).toEqual({ slopeDeg: 0, elevationM: 120 })
+    expect(context.weather).toEqual(weather)
   })
 
   it('marks a provider timestamp stale when it exceeds the freshness threshold', async () => {
