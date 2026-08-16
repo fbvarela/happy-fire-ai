@@ -55,6 +55,7 @@ export function RiskSummary({ result, context }: RiskSummaryProps) {
         <div><dt>Model</dt><dd>{result.modelVersion}</dd></div>
         <div><dt>Observed</dt><dd>{observedAt}</dd></div>
         <div><dt>Source</dt><dd>{formatSource(context.source)}</dd></div>
+        <div><dt>Cache</dt><dd>{context.cacheStatus}</dd></div>
       </dl>
 
       <div className="environment-section">

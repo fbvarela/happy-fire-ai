@@ -1,5 +1,6 @@
 export type DataStatus = 'available' | 'missing' | 'stale' | 'error'
 export type DataSource = 'mock' | 'open-meteo'
+export type CacheStatus = 'hit' | 'miss' | 'fallback'
 
 export type EnvironmentalContext = {
   latitude: number
@@ -7,6 +8,7 @@ export type EnvironmentalContext = {
   observedAt: string
   status: DataStatus
   source: DataSource
+  cacheStatus: CacheStatus
   weather: {
     temperatureC: number | null
     humidity: number | null
