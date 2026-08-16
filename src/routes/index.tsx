@@ -1,8 +1,18 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { useState } from 'react'
+
+import { LocationForm } from '../components/LocationForm'
+import { FireSimulation } from '../components/FireSimulation'
+import { RiskSummary } from '../components/RiskSummary'
+import type { EnvironmentalContext } from '../domain/environment'
+import { calculateRisk } from '../domain/risk'
 
 export const Route = createFileRoute('/')({ component: Home })
 
 function Home() {
+  const [context, setContext] = useState<EnvironmentalContext | null>(null)
+  const risk = context ? calculateRisk(context) : null
+
   return (
     <main className="app-shell">
       <header className="topbar">
@@ -20,19 +30,21 @@ function Home() {
           Choose a location to compare environmental conditions, understand
           the risk drivers, and explore a hypothetical spread scenario.
         </p>
-        <button className="primary-button" type="button">Choose a location</button>
+        <LocationForm onContext={setContext} />
       </section>
 
-      <section className="dashboard-grid" aria-label="Risk dashboard preview">
-        <article className="risk-card">
-          <div className="card-heading">
-            <span>Current risk</span>
-            <span className="muted-label">No location selected</span>
-          </div>
-          <div className="score-placeholder">--</div>
-          <p className="muted-copy">Select a location to calculate a transparent score.</p>
-          <div className="meter" aria-hidden="true"><span /></div>
-        </article>
+      <section className="dashboard-grid" aria-label="Risk dashboard">
+        {risk && context ? <RiskSummary result={risk} context={context} /> : (
+          <article className="risk-card risk-empty" aria-live="polite">
+            <div className="card-heading">
+              <span>Current risk</span>
+              <span className="muted-label">No location selected</span>
+            </div>
+            <div className="score-placeholder">--</div>
+            <p className="muted-copy">Select a location to calculate a transparent score.</p>
+            <div className="meter" aria-hidden="true"><span /></div>
+          </article>
+        )}
 
         <article className="info-card">
           <p className="card-kicker">What we will measure</p>
@@ -45,11 +57,8 @@ function Home() {
         </article>
       </section>
 
-      <footer className="safety-note">
-        <strong>Informational estimate only.</strong> This product is not an
-        official warning, prediction, or evacuation order. During an active
-        emergency, follow local emergency services and official fire authorities.
-      </footer>
+      <FireSimulation context={context} />
+
     </main>
   )
 }
