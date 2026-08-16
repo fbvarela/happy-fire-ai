@@ -35,4 +35,4 @@ WEATHER_PROVIDER=open-meteo npm run dev
 
 Leave `WEATHER_PROVIDER` unset or set it to `mock` for deterministic offline development. Stale Open-Meteo data is surfaced as `stale`; unavailable provider errors fall back to the deterministic mock context. The provider timestamp is exposed as the context `observedAt` value; data older than 90 minutes is marked stale.
 
-Successful weather responses are cached for 10 minutes per running server instance. This is a best-effort Vercel cache, not shared or durable storage. Server logs emit structured `weather-fetch`, `weather-cache-hit`, and `weather-fetch-failed` events with request timing.
+Successful default Open-Meteo responses are cached for 10 minutes per running server instance, with a maximum of 32 coordinate entries. Expired entries and the oldest entries are evicted. This is a best-effort Vercel cache, not shared or durable storage; injected providers are never cached. Server logs emit structured `weather-fetch`, `weather-cache-hit`, and `weather-fetch-failed` events with request timing; cache hits include source timestamp, age, and expiry.

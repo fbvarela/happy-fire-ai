@@ -11,6 +11,8 @@ type Coordinates = {
 const observedAt = '2026-01-01T00:00:00.000Z'
 const freshnessThresholdMs = 90 * 60 * 1000
 const cacheTtlMs = 10 * 60 * 1000
+// Keep the process-local cache bounded; use durable/shared caching if this needs to scale.
+const cacheMaxEntries = 32
 const weatherCache = new Map<string, {
   weather: EnvironmentalContext['weather']
   sourceTimestamp: string
@@ -34,6 +36,12 @@ const getFreshnessStatus = (sourceTimestamp: string) =>
   Date.now() - Date.parse(sourceTimestamp) > freshnessThresholdMs ? 'stale' : 'available'
 
 const getCacheKey = (latitude: number, longitude: number) => `${latitude},${longitude}`
+
+const pruneWeatherCache = (now: number) => {
+  for (const [key, entry] of weatherCache) {
+    if (entry.expiresAt <= now) weatherCache.delete(key)
+  }
+}
 
 const logWeatherEvent = (event: string, details: Record<string, unknown>) => {
   console.info(`[environment] ${event}`, JSON.stringify(details))
@@ -100,32 +108,52 @@ export const getEnvironmentContext = async (
     : undefined)
   if (!weatherProvider) return fallback
 
+  const cacheEnabled = provider === undefined
   const cacheKey = getCacheKey(latitude, longitude)
-  const cached = weatherCache.get(cacheKey)
-  if (cached && cached.expiresAt > Date.now()) {
-    logWeatherEvent('weather-cache-hit', { latitude, longitude })
-    return {
-      ...fallback,
-      weather: cached.weather,
-      observedAt: cached.sourceTimestamp,
-      status: getFreshnessStatus(cached.sourceTimestamp),
-      source: 'open-meteo',
-      cacheStatus: 'hit',
+  const startedAt = Date.now()
+  if (cacheEnabled) {
+    pruneWeatherCache(startedAt)
+    const cached = weatherCache.get(cacheKey)
+    if (cached) {
+      logWeatherEvent('weather-cache-hit', {
+        latitude,
+        longitude,
+        ageMs: Math.max(0, startedAt - Date.parse(cached.sourceTimestamp)),
+        expiresAt: new Date(cached.expiresAt).toISOString(),
+        expiresInMs: Math.max(0, cached.expiresAt - startedAt),
+        sourceTimestamp: cached.sourceTimestamp,
+        durationMs: Date.now() - startedAt,
+      })
+      return {
+        ...fallback,
+        weather: cached.weather,
+        observedAt: cached.sourceTimestamp,
+        status: getFreshnessStatus(cached.sourceTimestamp),
+        source: 'open-meteo',
+        cacheStatus: 'hit',
+      }
     }
   }
 
-  const startedAt = Date.now()
   try {
     const result: unknown = await weatherProvider.getWeather(latitude, longitude)
     if (!isWeatherResult(result)) throw new Error('Invalid provider weather')
     const sourceTimestamp = weatherProvider.sourceTimestamp ?? new Date().toISOString()
     const sourceTime = Date.parse(sourceTimestamp)
     if (Number.isNaN(sourceTime)) throw new Error('Invalid provider timestamp')
-    weatherCache.set(cacheKey, {
-      weather: result.weather,
-      sourceTimestamp,
-      expiresAt: Date.now() + cacheTtlMs,
-    })
+    if (cacheEnabled) {
+      const now = Date.now()
+      pruneWeatherCache(now)
+      if (!weatherCache.has(cacheKey) && weatherCache.size >= cacheMaxEntries) {
+        const oldestKey = weatherCache.keys().next().value
+        if (oldestKey !== undefined) weatherCache.delete(oldestKey)
+      }
+      weatherCache.set(cacheKey, {
+        weather: result.weather,
+        sourceTimestamp,
+        expiresAt: now + cacheTtlMs,
+      })
+    }
     logWeatherEvent('weather-fetch', {
       latitude,
       longitude,
