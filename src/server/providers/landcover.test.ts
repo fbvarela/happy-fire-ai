@@ -4,11 +4,14 @@ import { clearCopernicusTokenCache, createCopernicusLandCoverProvider } from './
 
 afterEach(() => clearCopernicusTokenCache())
 
+const fakeDecoder = async () => [40, 20, 20, 10, 10, 20]
+
 describe('Copernicus land-cover provider', () => {
   it('requests the global land-cover BYOC and maps cover fractions to fuel dryness', async () => {
-    const provider = createCopernicusLandCoverProvider('test-token', async (input, init) => {
+    const provider = createCopernicusLandCoverProvider({ accessToken: 'test-token', decoder: fakeDecoder }, async (input, init) => {
       const request = JSON.parse(String(init?.body)) as {
         input: { bounds: { bbox: number[] }; data: Array<{ type: string }> }
+        output: { responses: Array<{ format: { type: string } }> }
         evalscript: string
       }
 
@@ -18,10 +21,10 @@ describe('Copernicus land-cover provider', () => {
       expect(request.input.bounds.bbox[0]).toBeLessThan(request.input.bounds.bbox[2] as number)
       expect(request.input.bounds.bbox[1]).toBeLessThan(request.input.bounds.bbox[3] as number)
       expect(request.evalscript).toContain('Tree_Cover_Fraction')
+      expect(request.evalscript).toContain("sampleType: 'UINT8'")
+      expect(request.output.responses[0]?.format.type).toBe('image/tiff')
 
-      return new Response(JSON.stringify({
-        data: [{ bands: [40, 20, 20, 10, 10] }],
-      }))
+      return new Response(new ArrayBuffer(0))
     })
 
     await expect(provider.getVegetationDryness(40, -3)).resolves.toEqual({
@@ -31,17 +34,34 @@ describe('Copernicus land-cover provider', () => {
   })
 
   it('rejects malformed or out-of-range land-cover samples', async () => {
-    const provider = createCopernicusLandCoverProvider('test-token', async () => new Response(JSON.stringify({
-      data: [{ bands: [40, 20, 20, 10, 101] }],
-    })))
+    const provider = createCopernicusLandCoverProvider({ accessToken: 'test-token', decoder: async () => [40, 20, 20, 10, 101, 20] }, async () => new Response(new ArrayBuffer(0)))
 
     await expect(provider.getVegetationDryness(40, -3)).rejects.toThrow('Invalid Copernicus land-cover response')
   })
 
   it('rejects individually valid fractions whose combined total exceeds 100', async () => {
-    const provider = createCopernicusLandCoverProvider('test-token', async () => new Response(JSON.stringify({
-      data: [{ bands: [30, 30, 30, 20, 0] }],
-    })))
+    const provider = createCopernicusLandCoverProvider({ accessToken: 'test-token', decoder: async () => [30, 30, 30, 20, 0, 20] }, async () => new Response(new ArrayBuffer(0)))
+
+    await expect(provider.getVegetationDryness(40, -3)).rejects.toThrow('Invalid Copernicus land-cover response')
+  })
+
+  it('rejects an all-zero sample as missing land-cover data', async () => {
+    const provider = createCopernicusLandCoverProvider({ accessToken: 'test-token', decoder: async () => [0, 0, 0, 0, 0] }, async () => new Response(new ArrayBuffer(0)))
+
+    await expect(provider.getVegetationDryness(40, -3)).rejects.toThrow('Invalid Copernicus land-cover response')
+  })
+
+  it('maps a zero-fraction pixel from its discrete classification', async () => {
+    const provider = createCopernicusLandCoverProvider({ accessToken: 'test-token', decoder: async () => [0, 0, 0, 0, 0, 50] }, async () => new Response(new ArrayBuffer(0)))
+
+    await expect(provider.getVegetationDryness(40, -3)).resolves.toEqual({
+      vegetationDryness: 0,
+      source: 'copernicus',
+    })
+  })
+
+  it('rejects unknown discrete classifications', async () => {
+    const provider = createCopernicusLandCoverProvider({ accessToken: 'test-token', decoder: async () => [0, 0, 0, 0, 0, 999] }, async () => new Response(new ArrayBuffer(0)))
 
     await expect(provider.getVegetationDryness(40, -3)).rejects.toThrow('Invalid Copernicus land-cover response')
   })
@@ -55,9 +75,9 @@ describe('Copernicus land-cover provider', () => {
         return new Response(JSON.stringify({ access_token: 'short-lived', expires_in: 300 }))
       }
       processCalls += 1
-      return new Response(JSON.stringify({ data: [{ bands: [40, 20, 20, 10, 10] }] }))
+      return new Response(new ArrayBuffer(0))
     }
-    const provider = createCopernicusLandCoverProvider({ clientId: 'id', clientSecret: 'secret' }, fetcher)
+    const provider = createCopernicusLandCoverProvider({ clientId: 'id', clientSecret: 'secret', decoder: fakeDecoder }, fetcher)
 
     await provider.getVegetationDryness(40, -3)
     await provider.getVegetationDryness(40, -3)
@@ -77,9 +97,9 @@ describe('Copernicus land-cover provider', () => {
       processTokens.push(String(init?.headers && new Headers(init.headers).get('Authorization')))
       return processTokens.length === 1
         ? new Response(null, { status: 401 })
-        : new Response(JSON.stringify({ data: [{ bands: [40, 20, 20, 10, 10] }] }))
+        : new Response(new ArrayBuffer(0))
     }
-    const provider = createCopernicusLandCoverProvider({ clientId: 'id', clientSecret: 'secret' }, fetcher)
+    const provider = createCopernicusLandCoverProvider({ clientId: 'id', clientSecret: 'secret', decoder: fakeDecoder }, fetcher)
 
     await expect(provider.getVegetationDryness(40, -3)).resolves.toMatchObject({ source: 'copernicus' })
     expect(tokenCalls).toBe(2)
@@ -93,7 +113,7 @@ describe('Copernicus land-cover provider', () => {
   })
 
   it('bounds process requests with a timeout', async () => {
-    const provider = createCopernicusLandCoverProvider('test-token', async (_input, init) => new Promise<Response>((_resolve, reject) => {
+    const provider = createCopernicusLandCoverProvider({ accessToken: 'test-token', decoder: fakeDecoder }, async (_input, init) => new Promise<Response>((_resolve, reject) => {
       init?.signal?.addEventListener('abort', () => reject(new Error('aborted')))
     }), 5)
 

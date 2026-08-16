@@ -338,26 +338,44 @@ describe('getEnvironmentContext', () => {
     expect(context.status).toBe('available')
   })
 
+  it('does not reuse mock cache entries when land-cover becomes configured', async () => {
+    process.env.WEATHER_PROVIDER = 'open-meteo'
+    vi.stubGlobal('fetch', openMeteoFetcher)
+    const first = await getEnvironmentContext(44, -7)
+    const second = await getEnvironmentContext(44, -7, undefined, {
+      getVegetationDryness: async () => ({ vegetationDryness: 88, source: 'copernicus' }),
+    })
+
+    expect(first.fuelSource).toBe('mock')
+    expect(second.fuelSource).toBe('copernicus')
+    expect(second.fuel.vegetationDryness).toBe(88)
+  })
+
   it('caches Copernicus fuel together with default weather and terrain', async () => {
     process.env.WEATHER_PROVIDER = 'open-meteo'
-    process.env.CDSE_ACCESS_TOKEN = 'test-token'
     const fetcher = vi.fn((input: Request | URL | string) => {
       const url = new URL(input.toString())
       if (url.pathname.endsWith('/elevation')) return Promise.resolve(openMeteoTerrainResponse())
-      if (url.pathname.endsWith('/process')) return Promise.resolve(new Response(JSON.stringify({ data: [{ bands: [40, 20, 20, 10, 10] }] })))
       return Promise.resolve(openMeteoResponse())
     })
     vi.stubGlobal('fetch', fetcher)
+    let fuelCalls = 0
+    const landCoverProvider = {
+      getVegetationDryness: async () => {
+        fuelCalls += 1
+        return { vegetationDryness: 73, source: 'copernicus' as const }
+      },
+    }
 
-    const first = await getEnvironmentContext(41, -4)
-    const second = await getEnvironmentContext(41, -4)
+    const first = await getEnvironmentContext(41, -4, undefined, landCoverProvider)
+    const second = await getEnvironmentContext(41, -4, undefined, landCoverProvider)
 
     expect(first.fuelSource).toBe('copernicus')
     expect(first.fuel.vegetationDryness).toBe(73)
     expect(second.fuel).toEqual(first.fuel)
     expect(second.fuelSource).toBe('copernicus')
     expect(second.cacheStatus).toBe('hit')
-    expect(fetcher.mock.calls.filter(([input]) => new URL(input.toString()).pathname.endsWith('/process'))).toHaveLength(1)
+    expect(fuelCalls).toBe(1)
   })
 
   it('uses provider terrain when available', async () => {

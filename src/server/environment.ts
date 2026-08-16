@@ -49,7 +49,12 @@ const isTerrainResult = (value: unknown): value is Pick<EnvironmentalContext, 't
 const getFreshnessStatus = (sourceTimestamp: string) =>
   Date.now() - Date.parse(sourceTimestamp) > freshnessThresholdMs ? 'stale' : 'available'
 
-const getCacheKey = (latitude: number, longitude: number) => `${latitude},${longitude}`
+const getCacheKey = (
+  latitude: number,
+  longitude: number,
+  weatherEnabled: boolean,
+  landCoverEnabled: boolean,
+) => `${latitude},${longitude}:${weatherEnabled ? 'live' : 'mock'}:${landCoverEnabled ? 'live' : 'mock'}`
 
 const pruneWeatherCache = (now: number) => {
   for (const [key, entry] of weatherCache) {
@@ -134,7 +139,12 @@ export const getEnvironmentContext = async (
   if (!weatherProvider && !configuredLandCover) return fallback
 
   const cacheEnabled = provider === undefined
-  const cacheKey = getCacheKey(latitude, longitude)
+  const cacheKey = getCacheKey(
+    latitude,
+    longitude,
+    weatherProvider !== undefined,
+    configuredLandCover !== undefined,
+  )
   const startedAt = Date.now()
   if (cacheEnabled) {
     pruneWeatherCache(startedAt)
