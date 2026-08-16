@@ -20,6 +20,19 @@
 - Vercel build: `npm run build` passed.
 - `git diff --check` passed.
 
+## Offset-Crossing Follow-up
+
+- WorldPop now rejects a local window when the calculated longitude offset would cross the antimeridian, using the same unsupported-local-window error while preserving the pole and coarse antimeridian guards.
+- Added regression coverage for latitude 89.4 and longitude 179.2.
+
+## Latest Verification
+
+- Focused tests: 11 passed.
+- Full tests: 71 passed.
+- TypeScript: `npx tsc --noEmit` passed.
+- Vercel build: `npm run build` passed.
+- `git diff --check` passed.
+
 ## Antimeridian and Log Follow-up
 
 - WorldPop rejects normalized longitudes within 0.5 degrees of either antimeridian edge before constructing a wrapping polygon; ordinary 1 km windows remain unchanged.

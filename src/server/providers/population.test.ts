@@ -146,4 +146,11 @@ describe('WorldPop population provider', () => {
     await expect(provider.getNearbyPeople(43, 180)).rejects.toThrow('WorldPop local window is unavailable near the antimeridian')
     expect(calls).toBe(0)
   })
+
+  it('rejects a near-pole window whose calculated offset crosses the antimeridian', async () => {
+    const provider = createWorldPopPopulationProvider(async () =>
+      new Response(JSON.stringify({ status: 'finished', error: false, data: { total_population: 1 } })))
+
+    await expect(provider.getNearbyPeople(89.4, 179.2)).rejects.toThrow('WorldPop local window is unavailable near the antimeridian')
+  })
 })
