@@ -24,6 +24,8 @@ const isHumidity = (value: unknown): value is number | null => value === null ||
 const isNonNegative = (value: unknown): value is number | null => value === null || (isNumber(value) && value >= 0)
 const isWindDirection = (value: unknown): value is number | null => value === null || (isNumber(value) && value >= 0 && value <= 360)
 const isElevation = (value: unknown): value is number => isNumber(value) && value >= -1000 && value <= 10000
+const clampLatitude = (latitude: number) => Math.min(90, Math.max(-90, latitude))
+const normalizeLongitude = (longitude: number) => ((longitude + 180) % 360 + 360) % 360 - 180
 const parseUtcTimestamp = (value: string) => {
   const date = new Date(value.endsWith('Z') ? value : `${value}Z`)
   return Number.isNaN(date.getTime()) ? undefined : date
@@ -93,11 +95,18 @@ export const createOpenMeteoWeatherProvider = (
     },
     async getTerrain(latitude, longitude) {
       const latitudeOffset = 0.01
-      const longitudeOffset = 0.01 / Math.max(Math.cos(latitude * Math.PI / 180), 0.01)
+      const boundedLatitude = clampLatitude(latitude)
+      const boundedLongitude = normalizeLongitude(longitude)
+      const latitudeFactor = Math.max(Math.cos(boundedLatitude * Math.PI / 180), 0.01)
+      const longitudeOffset = 0.01 / latitudeFactor
+      const northLatitude = clampLatitude(boundedLatitude + latitudeOffset)
+      const southLatitude = clampLatitude(boundedLatitude - latitudeOffset)
+      const eastLongitude = normalizeLongitude(boundedLongitude + longitudeOffset)
+      const westLongitude = normalizeLongitude(boundedLongitude - longitudeOffset)
       const url = new URL('https://api.open-meteo.com/v1/elevation')
       url.search = new URLSearchParams({
-        latitude: [latitude, latitude + latitudeOffset, latitude - latitudeOffset, latitude, latitude].join(','),
-        longitude: [longitude, longitude, longitude, longitude + longitudeOffset, longitude - longitudeOffset].join(','),
+        latitude: [boundedLatitude, northLatitude, southLatitude, boundedLatitude, boundedLatitude].join(','),
+        longitude: [boundedLongitude, boundedLongitude, boundedLongitude, eastLongitude, westLongitude].join(','),
       }).toString()
 
       const response = await fetcher(url, { signal: AbortSignal.timeout(timeoutMs) })
@@ -110,7 +119,7 @@ export const createOpenMeteoWeatherProvider = (
       const [center, north, south, east, west] = payload.elevation
       const metersPerLatitudeDegree = 111_320
       const northSouthDistance = 2 * latitudeOffset * metersPerLatitudeDegree
-      const eastWestDistance = 2 * longitudeOffset * metersPerLatitudeDegree * Math.cos(latitude * Math.PI / 180)
+      const eastWestDistance = 2 * longitudeOffset * metersPerLatitudeDegree * latitudeFactor
       const northSouthGradient = (north - south) / northSouthDistance
       const eastWestGradient = (east - west) / eastWestDistance
       const slopeDeg = Math.min(90, Math.max(0, Math.atan(Math.hypot(northSouthGradient, eastWestGradient)) * 180 / Math.PI))

@@ -15,6 +15,7 @@ const cacheTtlMs = 10 * 60 * 1000
 const cacheMaxEntries = 32
 const weatherCache = new Map<string, {
   weather: EnvironmentalContext['weather']
+  terrain: EnvironmentalContext['terrain']
   sourceTimestamp: string
   expiresAt: number
 }>()
@@ -135,6 +136,7 @@ export const getEnvironmentContext = async (
       return {
         ...fallback,
         weather: cached.weather,
+        terrain: cached.terrain,
         observedAt: cached.sourceTimestamp,
         status: getFreshnessStatus(cached.sourceTimestamp),
         source: 'open-meteo',
@@ -171,6 +173,7 @@ export const getEnvironmentContext = async (
       }
       weatherCache.set(cacheKey, {
         weather: result.weather,
+        terrain,
         sourceTimestamp,
         expiresAt: now + cacheTtlMs,
       })

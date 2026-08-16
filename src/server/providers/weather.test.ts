@@ -81,6 +81,32 @@ describe('Open-Meteo weather provider', () => {
     expect(terrain?.terrain.slopeDeg).toBeGreaterThan(0)
   })
 
+  it.each([
+    [90, 179.999],
+    [-90, -179.999],
+    [0, 180],
+    [0, -180],
+  ])('keeps elevation neighborhoods safe at latitude %s longitude %s', async (latitude, longitude) => {
+    const provider = createOpenMeteoWeatherProvider(async (input) => {
+      const url = new URL(input.toString())
+      if (url.pathname.endsWith('/elevation')) {
+        for (const parameter of ['latitude', 'longitude']) {
+          for (const value of url.searchParams.get(parameter)!.split(',').map(Number)) {
+            expect(value).toBeGreaterThanOrEqual(parameter === 'latitude' ? -90 : -180)
+            expect(value).toBeLessThanOrEqual(parameter === 'latitude' ? 90 : 180)
+          }
+        }
+        return new Response(JSON.stringify({ elevation: [100, 120, 90, 110, 100] }))
+      }
+      return openMeteoResponse()
+    })
+
+    const result = await provider.getTerrain!(latitude, longitude)
+    expect(Number.isFinite(result.terrain.slopeDeg)).toBe(true)
+    expect(result.terrain.slopeDeg).toBeGreaterThanOrEqual(0)
+    expect(result.terrain.slopeDeg).toBeLessThanOrEqual(90)
+  })
+
   it('rejects malformed responses at the provider boundary', async () => {
     const provider = createOpenMeteoWeatherProvider(async () => new Response(JSON.stringify({ current: {} })))
 
@@ -214,6 +240,23 @@ describe('getEnvironmentContext', () => {
       '[environment] weather-cache-hit',
       expect.stringContaining('"ageMs":7201000'),
     )
+  })
+
+  it('restores cached provider terrain on a cache hit', async () => {
+    process.env.WEATHER_PROVIDER = 'open-meteo'
+    const fetcher = vi.fn((input: Request | URL | string) =>
+      new URL(input.toString()).pathname.endsWith('/elevation')
+        ? Promise.resolve(new Response(JSON.stringify({ elevation: [900, 900, 900, 900, 900] })))
+        : Promise.resolve(openMeteoResponse()))
+    vi.stubGlobal('fetch', fetcher)
+
+    const first = await getEnvironmentContext(41, -4)
+    const second = await getEnvironmentContext(41, -4)
+
+    expect(first.terrain).toEqual({ elevationM: 900, slopeDeg: 0 })
+    expect(second.terrain).toEqual(first.terrain)
+    expect(second.cacheStatus).toBe('hit')
+    expect(fetcher.mock.calls.filter(([input]) => new URL(input.toString()).pathname.endsWith('/elevation'))).toHaveLength(1)
   })
 
   it('bounds the default Open-Meteo cache and evicts its oldest coordinate', async () => {

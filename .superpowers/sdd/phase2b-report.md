@@ -19,3 +19,21 @@ Verification:
 - `git diff --check`: passed.
 
 Concern: Vitest reports a non-failing 10-second process-close timeout after successful runs; the command exits successfully and all tests pass.
+
+## Phase 2B Review Fix
+
+- Cached entries now retain validated terrain alongside weather, and cache hits restore both values.
+- Open-Meteo elevation neighborhoods clamp latitude, normalize longitude across the dateline, and use a bounded latitude factor for finite polar east/west distances.
+- Added regression coverage for cached terrain plus pole and dateline coordinates, including finite `0..90` slope assertions.
+
+Verification:
+
+- Focused tests: 26 passed.
+- Full tests: 45 passed.
+- TypeScript: passed.
+- Route generation: passed before and after builds.
+- Vite build: passed.
+- `vercel build --yes`: passed.
+- `git diff --check`: passed.
+
+Concern: Vitest reports a non-failing 10-second process-close timeout after successful runs; the command exits successfully and all tests pass. Route generation emits the existing circular-dependency warning.
