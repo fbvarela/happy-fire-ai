@@ -31,6 +31,14 @@ const isWeatherResult = (value: unknown): value is Pick<EnvironmentalContext, 'w
     isHumidity(fields.humidity) && isNonNegative(fields.precipitationMm24h) &&
     isNonNegative(fields.windKph) && isWindDirection(fields.windDirectionDeg)
 }
+const isTerrainResult = (value: unknown): value is Pick<EnvironmentalContext, 'terrain'> => {
+  if (!value || typeof value !== 'object' || !('terrain' in value)) return false
+  const terrain = value.terrain
+  if (!terrain || typeof terrain !== 'object') return false
+  const fields = terrain as Record<string, unknown>
+  return typeof fields.elevationM === 'number' && Number.isFinite(fields.elevationM) && fields.elevationM >= -1000 && fields.elevationM <= 10000 &&
+    typeof fields.slopeDeg === 'number' && Number.isFinite(fields.slopeDeg) && fields.slopeDeg >= 0 && fields.slopeDeg <= 90
+}
 
 const getFreshnessStatus = (sourceTimestamp: string) =>
   Date.now() - Date.parse(sourceTimestamp) > freshnessThresholdMs ? 'stale' : 'available'
@@ -138,6 +146,19 @@ export const getEnvironmentContext = async (
   try {
     const result: unknown = await weatherProvider.getWeather(latitude, longitude)
     if (!isWeatherResult(result)) throw new Error('Invalid provider weather')
+    let terrain = fallback.terrain
+    if (weatherProvider.getTerrain) {
+      try {
+        const terrainResult: unknown = await weatherProvider.getTerrain(latitude, longitude)
+        if (isTerrainResult(terrainResult)) terrain = terrainResult.terrain
+      } catch (error) {
+        console.warn('[environment] terrain-fetch-failed', JSON.stringify({
+          latitude,
+          longitude,
+          error: error instanceof Error ? error.message : 'unknown error',
+        }))
+      }
+    }
     const sourceTimestamp = weatherProvider.sourceTimestamp ?? new Date().toISOString()
     const sourceTime = Date.parse(sourceTimestamp)
     if (Number.isNaN(sourceTime)) throw new Error('Invalid provider timestamp')
@@ -163,6 +184,7 @@ export const getEnvironmentContext = async (
     return {
       ...fallback,
       weather: result.weather,
+      terrain,
       observedAt: sourceTimestamp,
       status: getFreshnessStatus(sourceTimestamp),
       source: 'open-meteo',
