@@ -70,3 +70,8 @@ Use a small grid-based simulation rendered with Canvas or SVG. Wind biases sprea
 2. **Data hardening:** real provider integrations, caching, freshness tracking, source attribution, validation, and observability.
 3. **AI assistance:** optional Cohere/Grok explanations and scenario summaries, constrained to verified inputs and never used as the score authority.
 4. **Operational features:** official alerts, historical comparisons, user-defined locations, and verified evacuation information only after the data and safety model are validated.
+
+#### Simulation and escape route
+- Improve the simulation as an explanatory scenario, not as a claimed reconstruction or forecast of a real fire. It should use the verified context inputs already available, show the assumptions and uncertainty, and remain clearly bounded.
+- Do not recommend a "safest" escape route from the fire-risk score alone. Road and country-crossing guidance requires an official routing, closure, evacuation, or emergency-data source. Until that source exists, show a clear unavailable state and direct users to local emergency services and fire authorities during an active emergency.
+- Candidate ideas for a later phase: display wind and slope vectors, expose a time-step and scenario summary, show confidence/data freshness beside the simulation, and add an official-route adapter with source timestamp, closures, and an explicit disclaimer.

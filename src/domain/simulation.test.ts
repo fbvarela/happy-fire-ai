@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest'
 
 import { describeSimulationAssumptions } from '../components/FireSimulation'
 import type { EnvironmentalContext } from './environment'
-import { stepSimulation, type SimulationGrid, type SimulationOptions } from './simulation'
+import {
+  describeSimulationScenario,
+  stepSimulation,
+  type SimulationGrid,
+  type SimulationOptions,
+} from './simulation'
 
 const calmDryConditions: SimulationOptions = {
   windDirectionDeg: 0,
@@ -31,6 +36,34 @@ describe('stepSimulation', () => {
       [0, 1, 0],
       [1, 2, 1],
       [0, 1, 0],
+    ])
+  })
+
+  it('spreads under the low-risk mock conditions used by the dashboard', () => {
+    const grid: SimulationGrid = [
+      [0, 0, 0],
+      [0, 1, 0],
+      [0, 0, 0],
+    ]
+
+    expect(stepSimulation(grid, { ...calmDryConditions, vegetationDryness: 35 })).toEqual([
+      [0, 1, 0],
+      [1, 2, 1],
+      [0, 1, 0],
+    ])
+  })
+
+  it('keeps a nonzero scenario moving when inputs are below the spread threshold', () => {
+    const grid: SimulationGrid = [
+      [0, 0, 0],
+      [0, 1, 0],
+      [0, 0, 0],
+    ]
+
+    expect(stepSimulation(grid, { ...calmDryConditions, slopeDeg: 1, vegetationDryness: 0 })).toEqual([
+      [0, 1, 0],
+      [0, 2, 0],
+      [0, 0, 0],
     ])
   })
 
@@ -118,5 +151,50 @@ describe('describeSimulationAssumptions', () => {
     }
 
     expect(describeSimulationAssumptions(context)).toContain('Using selected context')
+  })
+})
+
+describe('describeSimulationScenario', () => {
+  it('summarizes the selected inputs and data status', () => {
+    const context: EnvironmentalContext = {
+      latitude: 40,
+      longitude: -3,
+      observedAt: '2026-01-01T00:00:00.000Z',
+      status: 'available',
+      source: 'open-meteo',
+      cacheStatus: 'miss',
+      fuelSource: 'mock',
+      exposureSource: 'mock',
+      weather: { temperatureC: 20, humidity: 40, precipitationMm24h: 1, windKph: 10, windDirectionDeg: 180 },
+      terrain: { slopeDeg: 10, elevationM: 500 },
+      fuel: { vegetationDryness: 60 },
+      exposure: { nearbyPeople: 100 },
+      seasonWeatherProxy: 50,
+    }
+
+    expect(describeSimulationScenario(context)).toBe(
+      'Scenario inputs: wind 10 kph from 180°, slope 10°, vegetation dryness 60%. Data status: available. Source observed 2026-01-01T00:00:00.000Z.',
+    )
+  })
+
+  it('labels missing inputs as unavailable rather than safe', () => {
+    const context: EnvironmentalContext = {
+      latitude: 40,
+      longitude: -3,
+      observedAt: '2026-01-01T00:00:00.000Z',
+      status: 'stale',
+      source: 'mock',
+      cacheStatus: 'fallback',
+      fuelSource: 'mock',
+      exposureSource: 'mock',
+      weather: { temperatureC: null, humidity: null, precipitationMm24h: null, windKph: null, windDirectionDeg: null },
+      terrain: { slopeDeg: null, elevationM: null },
+      fuel: { vegetationDryness: null },
+      exposure: { nearbyPeople: null },
+      seasonWeatherProxy: null,
+    }
+
+    expect(describeSimulationScenario(context)).toContain('wind unavailable, slope unavailable, vegetation dryness unavailable')
+    expect(describeSimulationScenario(context)).toContain('Data status: stale')
   })
 })
