@@ -267,6 +267,19 @@ export type WeatherProvider = {
 - [x] Keep both values visible, labeled user-provided, and confidence-affecting when missing.
 - [x] Add separate weighted score factors without changing the deterministic score authority.
 
+### Task 10: Expose the Read-Only Risk API
+
+**Files:**
+- Create: `src/server/api/risk.ts`
+- Create: `src/server/api/risk.test.ts`
+- Create: `src/routes/api/v1/risk.ts`
+- Modify: `README.md`
+
+- [x] Expose `GET /api/v1/risk` with coordinates and optional manual local-context query parameters.
+- [x] Reuse the existing normalized context and deterministic scoring pipeline.
+- [x] Return CORS, no-store, disclaimer, validation, and per-IP rate-limit responses.
+- [x] Document the public JSON contract and example request.
+
 ### Task 9: Add Official Route Data Only
 
 **Files:**

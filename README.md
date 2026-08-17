@@ -45,6 +45,16 @@ Set `COHERE_API_KEY` to enable the optional explanation for a completed estimate
 
 The form accepts optional 0-100 user-provided estimates for local festival/event pressure and roadside ditch maintenance. Festival pressure contributes ignition/activity risk; higher ditch-maintenance values reduce roadside fuel risk. Both inputs are labeled manual until authoritative municipal or road-authority providers are integrated. The deterministic score is versioned as `mvp-2`.
 
+## REST API
+
+Other applications can retrieve the current risk data with the public read-only endpoint:
+
+```bash
+curl "https://your-domain.example/api/v1/risk?latitude=40&longitude=-3&localFestivalPressure=50&roadsideMaintenance=80"
+```
+
+The JSON response contains `data.risk`, `data.environment`, `data.sources`, and a safety `data.disclaimer`. Requests are limited per client IP; invalid requests return `400`, and excess traffic returns `429`. This endpoint does not provide evacuation or safest-route advice.
+
 ## Copernicus land cover
 
 Set `CDSE_CLIENT_ID` and `CDSE_CLIENT_SECRET` for server-side client-credentials access, or use `CDSE_ACCESS_TOKEN` for local/test fallback. Land-cover fuel dryness is a 0-100 weighted score: tree 0.8, shrub 0.8, grass 0.9, crops 0.6, and bare cover 0.1, with each fraction supplied as a percentage. Zero-fraction pixels use the documented `Discrete_Classification` band. Tokens are cached briefly in process memory and never logged. Official product and collection: https://documentation.dataspace.copernicus.eu/APIs/SentinelHub/Data/clms/land-cover-and-land-use-mapping/global-dynamic-land-cover/lc_global_100m_yearly_v3.html (`byoc-35fecfec-8a73-4723-bb08-b775f283a535`; `Tree_Cover_Fraction`, `Shrub_Cover_Fraction`, `Grass_Cover_Fraction`, `Crops_Cover_Fraction`, `Bare_Cover_Fraction`, `Discrete_Classification`).
