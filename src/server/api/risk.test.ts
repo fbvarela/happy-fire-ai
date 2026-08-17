@@ -16,6 +16,7 @@ describe('risk REST API', () => {
     expect(body.data.environment.latitude).toBe(40)
     expect(body.data.environment.localFestivalPressure).toBe(80)
     expect(body.data.environment.roadsideMaintenance).toBe(20)
+    expect(body.data.sources.roadClosures).toBeNull()
     expect(body.data.disclaimer).toContain('informational')
     expect(response.headers.get('access-control-allow-origin')).toBe('*')
   })
