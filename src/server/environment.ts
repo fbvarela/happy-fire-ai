@@ -26,6 +26,7 @@ const weatherCache = new Map<string, {
   exposureSource: EnvironmentalContext['exposureSource']
   exposureWarning?: string
   roadClosures: EnvironmentalContext['roadClosures']
+  roadClosureSource?: EnvironmentalContext['roadClosureSource']
   roadClosureObservedAt?: string
   roadClosureWarning?: string
   source: EnvironmentalContext['source']
@@ -207,6 +208,7 @@ export const getEnvironmentContext = async (
         exposureSource: cached.exposureSource,
         exposureWarning: cached.exposureWarning,
         roadClosures: cached.roadClosures,
+        roadClosureSource: cached.roadClosureSource,
         roadClosureObservedAt: cached.roadClosureObservedAt,
         roadClosureWarning: cached.roadClosureWarning,
         observedAt: cached.sourceTimestamp,
@@ -285,6 +287,7 @@ export const getEnvironmentContext = async (
       }
     }
     let roadClosures: EnvironmentalContext['roadClosures'] = []
+    let roadClosureSource: EnvironmentalContext['roadClosureSource']
     let roadClosureObservedAt: string | undefined
     let roadClosureWarning: string | undefined
     if (configuredRoadClosures) {
@@ -292,6 +295,7 @@ export const getEnvironmentContext = async (
         const closureResult = await configuredRoadClosures.getNearbyClosures(latitude, longitude)
         if (closureResult.source !== 'dgt' || !Array.isArray(closureResult.closures)) throw new Error('Invalid DGT road closure response')
         roadClosures = closureResult.closures
+        roadClosureSource = closureResult.source
         roadClosureObservedAt = closureResult.sourceTimestamp
       } catch (error) {
         roadClosureWarning = 'DGT road-closure data was unavailable; no route recommendation is shown.'
@@ -321,6 +325,7 @@ export const getEnvironmentContext = async (
         exposureSource,
         exposureWarning,
         roadClosures,
+        roadClosureSource,
         roadClosureObservedAt,
         roadClosureWarning,
         source: weatherProvider ? 'open-meteo' : 'mock',
@@ -344,6 +349,7 @@ export const getEnvironmentContext = async (
       exposureSource,
       exposureWarning,
       roadClosures,
+      roadClosureSource,
       roadClosureObservedAt,
       roadClosureWarning,
       observedAt: sourceTimestamp,

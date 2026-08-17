@@ -73,7 +73,7 @@ export async function handleRiskApiRequest(request: Request): Promise<Response> 
           weather: environment.source,
           fuel: environment.fuelSource,
           exposure: environment.exposureSource,
-          roadClosures: environment.roadClosures ? 'dgt' : null,
+          roadClosures: environment.roadClosureSource ?? null,
         },
         disclaimer: 'This is an informational estimate, not an official warning, prediction, or evacuation order.',
       },

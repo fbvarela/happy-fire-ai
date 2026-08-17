@@ -46,6 +46,7 @@ export type EnvironmentalContext = {
   localFestivalPressure?: number | null
   roadsideMaintenance?: number | null
   roadClosures?: RoadClosure[]
+  roadClosureSource?: 'dgt'
   roadClosureObservedAt?: string
   roadClosureWarning?: string
 }
