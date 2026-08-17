@@ -76,6 +76,8 @@ export function RiskSummary({ result, context }: RiskSummaryProps) {
           <div><dt>Vegetation dryness</dt><dd>{formatContextValue(context.fuel.vegetationDryness, '/ 100')}</dd></div>
           <div><dt>Nearby people</dt><dd>{formatContextValue(context.exposure.nearbyPeople, 'people')}</dd></div>
           <div><dt>Season / weather proxy</dt><dd>{formatContextValue(context.seasonWeatherProxy, '/ 100')}</dd></div>
+          <div><dt>Local events pressure</dt><dd>{formatContextValue(context.localFestivalPressure ?? null, '/ 100')}</dd></div>
+          <div><dt>Ditch maintenance</dt><dd>{formatContextValue(context.roadsideMaintenance ?? null, '/ 100')}</dd></div>
         </dl>
       </div>
 

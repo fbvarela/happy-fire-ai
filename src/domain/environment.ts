@@ -9,6 +9,10 @@ export type RoadClosure = {
   longitude: number
   validFrom: string
 }
+export type ManualRiskInputs = {
+  localFestivalPressure?: number | null
+  roadsideMaintenance?: number | null
+}
 
 export type EnvironmentalContext = {
   latitude: number
@@ -39,6 +43,8 @@ export type EnvironmentalContext = {
     nearbyPeople: number | null
   }
   seasonWeatherProxy: number | null
+  localFestivalPressure?: number | null
+  roadsideMaintenance?: number | null
   roadClosures?: RoadClosure[]
   roadClosureObservedAt?: string
   roadClosureWarning?: string

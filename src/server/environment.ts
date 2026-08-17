@@ -1,6 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
 
-import type { EnvironmentalContext } from '../domain/environment'
+import type { EnvironmentalContext, ManualRiskInputs } from '../domain/environment'
 import { createCopernicusLandCoverProvider, type LandCoverProvider } from './providers/landcover'
 import { createOpenMeteoWeatherProvider, type WeatherProvider } from './providers/weather'
 import { createWorldPopPopulationProvider, type PopulationProvider } from './providers/population'
@@ -91,6 +91,19 @@ const validateCoordinates = (coordinates: Coordinates) => {
   }
 
   return coordinates
+}
+
+const validateRequest = (request: Coordinates & ManualRiskInputs) => {
+  validateCoordinates(request)
+  for (const [label, value] of [
+    ['local festival pressure', request.localFestivalPressure],
+    ['roadside maintenance', request.roadsideMaintenance],
+  ] as const) {
+    if (value !== undefined && value !== null && (!Number.isFinite(value) || value < 0 || value > 100)) {
+      throw new Error(`${label} must be between 0 and 100.`)
+    }
+  }
+  return request
 }
 
 const getMockContext = (latitude: number, longitude: number): EnvironmentalContext => {
@@ -350,5 +363,9 @@ export const getEnvironmentContext = async (
 }
 
 export const getEnvironment = createServerFn({ method: 'GET' })
-  .validator(validateCoordinates)
-  .handler(({ data }) => getEnvironmentContext(data.latitude, data.longitude))
+  .validator(validateRequest)
+  .handler(({ data }) => getEnvironmentContext(data.latitude, data.longitude).then((context) => ({
+    ...context,
+    localFestivalPressure: data.localFestivalPressure ?? null,
+    roadsideMaintenance: data.roadsideMaintenance ?? null,
+  })))

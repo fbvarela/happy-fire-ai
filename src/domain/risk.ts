@@ -11,7 +11,7 @@ export type RiskResult = {
   score: number
   level: 'low' | 'moderate' | 'high' | 'extreme'
   confidence: number
-  modelVersion: 'mvp-1'
+  modelVersion: 'mvp-2'
   factors: RiskFactor[]
 }
 
@@ -40,7 +40,7 @@ const riskLevel = (score: number): RiskResult['level'] => {
 }
 
 export function calculateRisk(context: EnvironmentalContext): RiskResult {
-  // Fixed MVP weights: weather 35%, terrain 20%, fuel 25%, season/weather history 10%, exposure 10%.
+  // Fixed MVP-2 weights: weather 30%, terrain 20%, fuel 20%, season/weather history 10%, exposure 10%, events 5%, maintenance 5%.
   const weatherValues = [
     context.weather.temperatureC,
     context.weather.humidity,
@@ -52,7 +52,9 @@ export function calculateRisk(context: EnvironmentalContext): RiskResult {
   const fuelValues = [context.fuel.vegetationDryness]
   const seasonValues = [context.seasonWeatherProxy]
   const exposureValues = [context.exposure.nearbyPeople]
-  const inputGroups = [weatherValues, terrainValues, fuelValues, seasonValues, exposureValues]
+  const eventValues = [context.localFestivalPressure ?? null]
+  const maintenanceValues = [context.roadsideMaintenance ?? null]
+  const inputGroups = [weatherValues, terrainValues, fuelValues, seasonValues, exposureValues, eventValues, maintenanceValues]
 
   const weather = average([
     context.weather.temperatureC === null ? null : clamp((context.weather.temperatureC - 20) * 4),
@@ -76,12 +78,14 @@ export function calculateRisk(context: EnvironmentalContext): RiskResult {
       ? null
       : clamp(context.exposure.nearbyPeople / 10),
   ])
+  const events = average(eventValues.map((value) => value === null ? null : clamp(value)))
+  const maintenance = average(maintenanceValues.map((value) => value === null ? null : clamp(100 - value)))
 
   const factors: RiskFactor[] = [
     {
       id: 'weather',
       label: 'Weather',
-      contribution: round(weather * 0.35),
+      contribution: round(weather * 0.3),
       status: factorStatus(context.status, weatherValues),
     },
     {
@@ -93,7 +97,7 @@ export function calculateRisk(context: EnvironmentalContext): RiskResult {
     {
       id: 'fuel',
       label: 'Fuel',
-      contribution: round(fuel * 0.25),
+      contribution: round(fuel * 0.2),
       status: factorStatus(context.status, fuelValues),
     },
     {
@@ -107,6 +111,18 @@ export function calculateRisk(context: EnvironmentalContext): RiskResult {
       label: 'Exposure',
       contribution: round(exposure * 0.1),
       status: factorStatus(context.status, exposureValues),
+    },
+    {
+      id: 'local-events',
+      label: 'Local festivals/events',
+      contribution: round(events * 0.05),
+      status: factorStatus(context.status, eventValues),
+    },
+    {
+      id: 'roadside-maintenance',
+      label: 'Roadside maintenance',
+      contribution: round(maintenance * 0.05),
+      status: factorStatus(context.status, maintenanceValues),
     },
   ]
 
@@ -126,7 +142,7 @@ export function calculateRisk(context: EnvironmentalContext): RiskResult {
     score,
     level: riskLevel(score),
     confidence,
-    modelVersion: 'mvp-1',
+    modelVersion: 'mvp-2',
     factors,
   }
 }
