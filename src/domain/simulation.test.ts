@@ -53,6 +53,20 @@ describe('stepSimulation', () => {
     ])
   })
 
+  it('keeps a nonzero scenario moving when inputs are below the spread threshold', () => {
+    const grid: SimulationGrid = [
+      [0, 0, 0],
+      [0, 1, 0],
+      [0, 0, 0],
+    ]
+
+    expect(stepSimulation(grid, { ...calmDryConditions, slopeDeg: 1, vegetationDryness: 0 })).toEqual([
+      [0, 1, 0],
+      [0, 2, 0],
+      [0, 0, 0],
+    ])
+  })
+
   it('does not mutate unrelated cells when wind is zero', () => {
     const grid: SimulationGrid = [
       [0, 0, 0, 0],

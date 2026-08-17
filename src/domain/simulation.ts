@@ -41,18 +41,25 @@ export function stepSimulation(grid: SimulationGrid, options: SimulationOptions)
       if (cell !== 1) return
       next[rowIndex][columnIndex] = 2
 
-      neighbors.forEach(({ row: rowOffset, column: columnOffset }) => {
+      const candidates = neighbors.flatMap(({ row: rowOffset, column: columnOffset }) => {
         const targetRow = rowIndex + rowOffset
         const targetColumn = columnIndex + columnOffset
         if (targetRow < 0 || targetRow >= grid.length || targetColumn < 0 || targetColumn >= grid[targetRow].length) {
-          return
+          return []
         }
-        if (grid[targetRow][targetColumn] !== 0) return
+        if (grid[targetRow][targetColumn] !== 0) return []
 
         const alignment = rowOffset * windY + columnOffset * windX
         const influence = baseInfluence + Math.max(0, alignment) * options.windKph
-        if (influence >= 30) next[targetRow][targetColumn] = 1
+        return [{ targetRow, targetColumn, influence }]
       })
+      const spread = candidates.filter((candidate) => candidate.influence >= 30)
+      const fallback = candidates
+        .filter((candidate) => candidate.influence > 0)
+        .sort((left, right) => right.influence - left.influence)[0]
+      for (const candidate of (spread.length > 0 ? spread : fallback ? [fallback] : [])) {
+        next[candidate.targetRow][candidate.targetColumn] = 1
+      }
     })
   })
 
