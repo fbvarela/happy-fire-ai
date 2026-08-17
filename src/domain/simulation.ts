@@ -51,7 +51,7 @@ export function stepSimulation(grid: SimulationGrid, options: SimulationOptions)
 
         const alignment = rowOffset * windY + columnOffset * windX
         const influence = baseInfluence + Math.max(0, alignment) * options.windKph
-        if (influence >= 60) next[targetRow][targetColumn] = 1
+        if (influence >= 30) next[targetRow][targetColumn] = 1
       })
     })
   })

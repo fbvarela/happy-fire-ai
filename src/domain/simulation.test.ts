@@ -39,6 +39,20 @@ describe('stepSimulation', () => {
     ])
   })
 
+  it('spreads under the low-risk mock conditions used by the dashboard', () => {
+    const grid: SimulationGrid = [
+      [0, 0, 0],
+      [0, 1, 0],
+      [0, 0, 0],
+    ]
+
+    expect(stepSimulation(grid, { ...calmDryConditions, vegetationDryness: 35 })).toEqual([
+      [0, 1, 0],
+      [1, 2, 1],
+      [0, 1, 0],
+    ])
+  })
+
   it('does not mutate unrelated cells when wind is zero', () => {
     const grid: SimulationGrid = [
       [0, 0, 0, 0],
