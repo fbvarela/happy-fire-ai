@@ -83,13 +83,7 @@ h1 { max-width: 680px; margin: 18px 0; color: #f3f7ed; font-size: clamp(42px, 7v
 .environment-grid div { min-width: 0; padding: 10px; border: 1px solid #293a31; border-radius: 7px; }
 .environment-grid dt { overflow: hidden; color: #71857a; font: 10px 'DM Mono', monospace; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
 .environment-grid dd { margin: 5px 0 0; color: #dce8dc; font: 12px 'DM Mono', monospace; }
-.simulation-card { margin-top: 16px; padding: 24px; border: 1px solid #293a31; border-radius: 12px; background: #17221d; }
-.simulation-card h2 { margin: 4px 0 0; font-size: 22px; font-weight: 500; }
-.simulation-card .card-kicker { margin: 0; }
-.simulation-step { color: #c7f36b; font: 12px 'DM Mono', monospace; }
-.simulation-canvas { display: block; width: 100%; height: auto; margin: 22px 0 16px; border: 1px solid #304239; border-radius: 7px; image-rendering: pixelated; }
-.simulation-controls { display: flex; flex-wrap: wrap; gap: 10px; }
-.simulation-assumptions { margin: 16px 0 0; color: #71857a; font: 12px/1.5 'DM Mono', monospace; }
+.data-source-note { margin: 16px 0 0; color: #71857a; font: 12px/1.5 'DM Mono', monospace; }
 .explanation-panel { margin-top: 16px; padding: 24px; border: 1px solid #293a31; border-radius: 12px; background: #17221d; }
 .explanation-panel h2 { margin: 4px 0 0; font-size: 22px; font-weight: 500; }
 .explanation-panel .card-kicker { margin: 0; }
@@ -107,7 +101,6 @@ h1 { max-width: 680px; margin: 18px 0; color: #f3f7ed; font-size: clamp(42px, 7v
   .location-fields { grid-template-columns: 1fr; }
   .location-actions > * { flex: 1 1 100%; }
   .risk-card, .info-card { padding: 20px; }
-  .simulation-card { padding: 20px; }
   .score-value, .score-placeholder { font-size: 60px; }
   .environment-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

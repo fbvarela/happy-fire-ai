@@ -41,6 +41,10 @@ Successful default Open-Meteo responses are cached for 10 minutes per running se
 
 Set `COHERE_API_KEY` to enable the optional explanation for a completed estimate. The key is server-only. AI text is explanatory only: it never changes the numeric score, risk factors, safety notice, or emergency guidance. Without the key, or if Cohere is unavailable, the app shows deterministic fallback text.
 
+## Manual local context
+
+The form accepts optional 0-100 user-provided estimates for local festival/event pressure and roadside ditch maintenance. Festival pressure contributes ignition/activity risk; higher ditch-maintenance values reduce roadside fuel risk. Both inputs are labeled manual until authoritative municipal or road-authority providers are integrated. The deterministic score is versioned as `mvp-2`.
+
 ## Copernicus land cover
 
 Set `CDSE_CLIENT_ID` and `CDSE_CLIENT_SECRET` for server-side client-credentials access, or use `CDSE_ACCESS_TOKEN` for local/test fallback. Land-cover fuel dryness is a 0-100 weighted score: tree 0.8, shrub 0.8, grass 0.9, crops 0.6, and bare cover 0.1, with each fraction supplied as a percentage. Zero-fraction pixels use the documented `Discrete_Classification` band. Tokens are cached briefly in process memory and never logged. Official product and collection: https://documentation.dataspace.copernicus.eu/APIs/SentinelHub/Data/clms/land-cover-and-land-use-mapping/global-dynamic-land-cover/lc_global_100m_yearly_v3.html (`byoc-35fecfec-8a73-4723-bb08-b775f283a535`; `Tree_Cover_Fraction`, `Shrub_Cover_Fraction`, `Grass_Cover_Fraction`, `Crops_Cover_Fraction`, `Bare_Cover_Fraction`, `Discrete_Classification`).

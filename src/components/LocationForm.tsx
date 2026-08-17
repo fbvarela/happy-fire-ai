@@ -10,6 +10,8 @@ type LocationFormProps = {
 export function LocationForm({ onContext }: LocationFormProps) {
   const [latitude, setLatitude] = useState('')
   const [longitude, setLongitude] = useState('')
+  const [festivalPressure, setFestivalPressure] = useState('')
+  const [roadsideMaintenance, setRoadsideMaintenance] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -23,7 +25,14 @@ export function LocationForm({ onContext }: LocationFormProps) {
     setError(null)
 
     try {
-      onContext(await getEnvironment({ data: { latitude: nextLatitude, longitude: nextLongitude } }))
+      onContext(await getEnvironment({
+        data: {
+          latitude: nextLatitude,
+          longitude: nextLongitude,
+          localFestivalPressure: festivalPressure.trim() === '' ? null : Number(festivalPressure),
+          roadsideMaintenance: roadsideMaintenance.trim() === '' ? null : Number(roadsideMaintenance),
+        },
+      }))
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Unable to load this location.')
     } finally {
@@ -86,6 +95,14 @@ export function LocationForm({ onContext }: LocationFormProps) {
             required
           />
         </label>
+        <label>
+          Local festivals/events pressure (0-100)
+          <input type="number" min="0" max="100" step="1" value={festivalPressure} onChange={(event) => setFestivalPressure(event.target.value)} placeholder="Optional" />
+        </label>
+        <label>
+          Roadside ditch maintenance (0-100)
+          <input type="number" min="0" max="100" step="1" value={roadsideMaintenance} onChange={(event) => setRoadsideMaintenance(event.target.value)} placeholder="Optional" />
+        </label>
       </div>
       <div className="location-actions">
         <button className="primary-button" type="submit" disabled={loading}>
@@ -96,6 +113,7 @@ export function LocationForm({ onContext }: LocationFormProps) {
         </button>
       </div>
       {error && <p className="form-error" role="alert">{error}</p>}
+      <p className="muted-copy">These two values are manual estimates for now. Higher festival pressure raises risk; higher ditch maintenance lowers it.</p>
     </form>
   )
 }

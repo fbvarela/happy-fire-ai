@@ -2,7 +2,6 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
 
 import { LocationForm } from '../components/LocationForm'
-import { FireSimulation } from '../components/FireSimulation'
 import { ExplanationPanel } from '../components/ExplanationPanel'
 import { RiskSummary } from '../components/RiskSummary'
 import type { EnvironmentalContext } from '../domain/environment'
@@ -29,7 +28,7 @@ function Home() {
         <h1>See the conditions before the fire sees you.</h1>
         <p className="hero-copy">
           Choose a location to compare environmental conditions, understand
-          the risk drivers, and explore a hypothetical spread scenario.
+          the risk drivers and review local risk conditions.
         </p>
         <LocationForm onContext={setContext} />
       </section>
@@ -79,11 +78,9 @@ function Home() {
               </ul>
             </>
           )}
-          {context.roadClosureObservedAt && <p className="simulation-assumptions">DGT source observed {context.roadClosureObservedAt}. Verify current road signs and official instructions.</p>}
+          {context.roadClosureObservedAt && <p className="data-source-note">DGT source observed {context.roadClosureObservedAt}. Verify current road signs and official instructions.</p>}
         </article>
       )}
-
-      <FireSimulation context={context} />
 
     </main>
   )
