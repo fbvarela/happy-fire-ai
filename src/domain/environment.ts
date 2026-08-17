@@ -1,6 +1,14 @@
 export type DataStatus = 'available' | 'missing' | 'stale' | 'error'
 export type DataSource = 'mock' | 'open-meteo'
 export type CacheStatus = 'hit' | 'miss' | 'fallback'
+export type RoadClosure = {
+  id: string
+  roadName: string
+  status: 'closed'
+  latitude: number
+  longitude: number
+  validFrom: string
+}
 
 export type EnvironmentalContext = {
   latitude: number
@@ -31,4 +39,7 @@ export type EnvironmentalContext = {
     nearbyPeople: number | null
   }
   seasonWeatherProxy: number | null
+  roadClosures?: RoadClosure[]
+  roadClosureObservedAt?: string
+  roadClosureWarning?: string
 }

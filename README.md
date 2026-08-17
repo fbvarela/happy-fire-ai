@@ -50,3 +50,5 @@ Generated using European Union's Copernicus Land Monitoring Service information.
 ## WorldPop population exposure
 
 Set `WORLDPOP_ENABLED=true` to use WorldPop population estimates for the exposure input. The query uses an approximately 1 km radius window around the requested coordinate. An optional `WORLDPOP_API_KEY` can be configured for authenticated requests; it is used only on the server and never logged or sent to the client. WorldPop data is available under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) from the [WorldPop stats API](https://api.worldpop.org/v1/services/stats).
+
+Set `DGT_ROAD_CLOSURES_ENABLED=true` to query the official Spain DGT DATEX2 v3.7 feed for nearby active road closures. The feed covers the state road network except the Basque Country and Catalonia, and is used only to display closure status. Happy Fire does not calculate or recommend a safest route. Source: [DGT NAP Incidencias DATEX2 v3.7](https://nap.dgt.es/dataset/incidencias-dgt-datex2-v3-7).

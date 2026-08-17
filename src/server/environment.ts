@@ -4,6 +4,7 @@ import type { EnvironmentalContext } from '../domain/environment'
 import { createCopernicusLandCoverProvider, type LandCoverProvider } from './providers/landcover'
 import { createOpenMeteoWeatherProvider, type WeatherProvider } from './providers/weather'
 import { createWorldPopPopulationProvider, type PopulationProvider } from './providers/population'
+import { createDgtRoadClosureProvider, type RoadClosureProvider } from './providers/evacuation'
 
 type Coordinates = {
   latitude: number
@@ -24,6 +25,9 @@ const weatherCache = new Map<string, {
   exposure: EnvironmentalContext['exposure']
   exposureSource: EnvironmentalContext['exposureSource']
   exposureWarning?: string
+  roadClosures: EnvironmentalContext['roadClosures']
+  roadClosureObservedAt?: string
+  roadClosureWarning?: string
   source: EnvironmentalContext['source']
   sourceTimestamp: string
   expiresAt: number
@@ -59,7 +63,8 @@ const getCacheKey = (
   weatherEnabled: boolean,
   landCoverEnabled: boolean,
   populationEnabled: boolean,
-) => `${latitude},${longitude}:${weatherEnabled ? 'live' : 'mock'}:${landCoverEnabled ? 'live' : 'mock'}:${populationEnabled ? 'live' : 'mock'}`
+  roadClosuresEnabled: boolean,
+) => `${latitude},${longitude}:${weatherEnabled ? 'live' : 'mock'}:${landCoverEnabled ? 'live' : 'mock'}:${populationEnabled ? 'live' : 'mock'}:${roadClosuresEnabled ? 'live' : 'mock'}`
 
 const pruneWeatherCache = (now: number) => {
   for (const [key, entry] of weatherCache) {
@@ -119,6 +124,7 @@ const getMockContext = (latitude: number, longitude: number): EnvironmentalConte
       nearbyPeople: 400 + Math.round(longitudeSignal * 4000),
     },
     seasonWeatherProxy: Math.round((40 + longitudeSignal * 45) * 10) / 10,
+    roadClosures: [],
   }
 }
 
@@ -128,6 +134,7 @@ export const getEnvironmentContext = async (
   provider?: WeatherProvider & { sourceTimestamp?: string },
   landCoverProvider?: LandCoverProvider,
   populationProvider?: PopulationProvider,
+  roadClosureProvider?: RoadClosureProvider,
 ): Promise<EnvironmentalContext> => {
   validateCoordinates({ latitude, longitude })
   const fallback = getMockContext(latitude, longitude)
@@ -148,7 +155,10 @@ export const getEnvironmentContext = async (
       ? createWorldPopPopulationProvider()
       : undefined
   )
-  if (!weatherProvider && !configuredLandCover && !configuredPopulation) return fallback
+  const configuredRoadClosures = roadClosureProvider ?? (
+    process.env.DGT_ROAD_CLOSURES_ENABLED === 'true' ? createDgtRoadClosureProvider() : undefined
+  )
+  if (!weatherProvider && !configuredLandCover && !configuredPopulation && !configuredRoadClosures) return fallback
 
   const cacheEnabled = provider === undefined
   const cacheKey = getCacheKey(
@@ -157,6 +167,7 @@ export const getEnvironmentContext = async (
     weatherProvider !== undefined,
     configuredLandCover !== undefined,
     configuredPopulation !== undefined,
+    configuredRoadClosures !== undefined,
   )
   const startedAt = Date.now()
   if (cacheEnabled) {
@@ -182,6 +193,9 @@ export const getEnvironmentContext = async (
         exposure: cached.exposure,
         exposureSource: cached.exposureSource,
         exposureWarning: cached.exposureWarning,
+        roadClosures: cached.roadClosures,
+        roadClosureObservedAt: cached.roadClosureObservedAt,
+        roadClosureWarning: cached.roadClosureWarning,
         observedAt: cached.sourceTimestamp,
         status: getFreshnessStatus(cached.sourceTimestamp),
         source: cached.source,
@@ -257,6 +271,23 @@ export const getEnvironmentContext = async (
         }))
       }
     }
+    let roadClosures: EnvironmentalContext['roadClosures'] = []
+    let roadClosureObservedAt: string | undefined
+    let roadClosureWarning: string | undefined
+    if (configuredRoadClosures) {
+      try {
+        const closureResult = await configuredRoadClosures.getNearbyClosures(latitude, longitude)
+        if (closureResult.source !== 'dgt' || !Array.isArray(closureResult.closures)) throw new Error('Invalid DGT road closure response')
+        roadClosures = closureResult.closures
+        roadClosureObservedAt = closureResult.sourceTimestamp
+      } catch (error) {
+        roadClosureWarning = 'DGT road-closure data was unavailable; no route recommendation is shown.'
+        console.warn('[environment] dgt-road-closures-fetch-failed', JSON.stringify({
+          status: 'unavailable',
+          error: error instanceof Error ? error.message : 'unknown error',
+        }))
+      }
+    }
     const sourceTimestamp = weatherProvider?.sourceTimestamp ?? new Date().toISOString()
     const sourceTime = Date.parse(sourceTimestamp)
     if (Number.isNaN(sourceTime)) throw new Error('Invalid provider timestamp')
@@ -276,6 +307,9 @@ export const getEnvironmentContext = async (
         exposure,
         exposureSource,
         exposureWarning,
+        roadClosures,
+        roadClosureObservedAt,
+        roadClosureWarning,
         source: weatherProvider ? 'open-meteo' : 'mock',
         sourceTimestamp,
         expiresAt: now + cacheTtlMs,
@@ -296,6 +330,9 @@ export const getEnvironmentContext = async (
       exposure,
       exposureSource,
       exposureWarning,
+      roadClosures,
+      roadClosureObservedAt,
+      roadClosureWarning,
       observedAt: sourceTimestamp,
       status: getFreshnessStatus(sourceTimestamp),
       source: weatherProvider ? 'open-meteo' : 'mock',

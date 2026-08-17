@@ -60,6 +60,29 @@ function Home() {
 
       {risk && <ExplanationPanel result={risk} />}
 
+      {context && (
+        <article className="info-card road-status-card" aria-labelledby="road-status-title">
+          <p className="card-kicker">Official road status</p>
+          <h2 id="road-status-title">DGT closure data</h2>
+          {!context.roadClosures && !context.roadClosureWarning && (
+            <p className="muted-copy">Unavailable until the server-side DGT feed is enabled. No route recommendation is shown.</p>
+          )}
+          {context.roadClosureWarning && <p className="explanation-error">{context.roadClosureWarning}</p>}
+          {context.roadClosures && context.roadClosures.length === 0 && !context.roadClosureWarning && (
+            <p className="muted-copy">No nearby active DGT road closures were returned. This is not a route recommendation.</p>
+          )}
+          {context.roadClosures && context.roadClosures.length > 0 && (
+            <>
+              <p className="muted-copy">DGT reports these nearby roads as closed:</p>
+              <ul>
+                {context.roadClosures.map((closure) => <li key={closure.id}>{closure.roadName} ({closure.status})</li>)}
+              </ul>
+            </>
+          )}
+          {context.roadClosureObservedAt && <p className="simulation-assumptions">DGT source observed {context.roadClosureObservedAt}. Verify current road signs and official instructions.</p>}
+        </article>
+      )}
+
       <FireSimulation context={context} />
 
     </main>

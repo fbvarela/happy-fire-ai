@@ -302,12 +302,12 @@ export type WeatherProvider = {
 - Modify: `src/routes/index.tsx`
 - Modify: `README.md`
 
-- [ ] Select an authoritative emergency, evacuation, road-closure, or routing source before adding an adapter; do not infer a route from the risk score.
-- [ ] Keep provider credentials and requests server-side, validate geometry/status/closure timestamps, and expose source attribution.
-- [ ] Render an unavailable state when no official route data is configured or when the source is stale.
-- [ ] Never label a route safest without an authoritative source and current route status.
-- [ ] Test malformed, stale, unavailable, and valid provider responses.
-- [ ] Run `npm test`, `npm run generate-routes`, `npm run build`, and `git diff --check`.
+- [x] Select the authoritative Spain DGT DATEX2 road-closure source before adding an adapter; do not infer a route from the risk score.
+- [x] Keep requests server-side, validate geometry/status/closure timestamps, and expose source attribution.
+- [x] Render an unavailable state when no official route data is configured or when the source is stale.
+- [x] Never label a route safest without an authoritative source and current route status.
+- [x] Test malformed, stale, unavailable, and valid provider responses.
+- [x] Run `npm test`, `npm run generate-routes`, `npm run build`, and `git diff --check`.
 
 ## Post-MVP Order
 
