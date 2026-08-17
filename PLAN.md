@@ -26,6 +26,12 @@
 
 ## Scope
 
+## Current Status
+
+- MVP dashboard, deterministic scoring, provider-backed environment context, Copernicus land cover, WorldPop exposure, and optional Cohere explanations are implemented.
+- The current Canvas simulation is intentionally bounded and deterministic. It explains adjacent spread assumptions but does not reconstruct or forecast a real fire.
+- Escape-route recommendations are not implemented. No unofficial route must be labeled safest or presented as evacuation guidance.
+
 ### Included in MVP
 
 - Select a location with browser geolocation or latitude/longitude inputs.
@@ -263,11 +269,45 @@ export type WeatherProvider = {
 - [ ] Invalid coordinates are rejected before context retrieval.
 - [ ] The dashboard displays a deterministic 0-100 score, risk level, confidence, factor breakdown, model version, and timestamp.
 - [ ] Missing or stale values visibly reduce confidence.
-- [ ] The simulation is reproducible, bounded, and labeled hypothetical.
-- [ ] No provider key is present in client bundles.
-- [ ] No precise location is persisted by default.
-- [ ] The safety notice directs active emergencies to official local authorities.
-- [ ] `npm test`, `npm run generate-routes`, `npm run build`, and `git diff --check` pass.
+- [x] The simulation is reproducible, bounded, and labeled hypothetical.
+- [x] No provider key is present in client bundles.
+- [x] No precise location is persisted by default.
+- [x] The safety notice directs active emergencies to official local authorities.
+- [x] `npm test`, `npm run generate-routes`, `npm run build`, and `git diff --check` pass.
+
+## Next Plan: Simulation and Escape Route
+
+### Task 8: Make the Simulation More Explainable
+
+**Files:**
+- Modify: `src/domain/simulation.ts`
+- Modify: `src/domain/simulation.test.ts`
+- Modify: `src/components/FireSimulation.tsx`
+- Modify: `src/styles.css`
+
+- [x] Keep the simulation deterministic and bounded; do not describe it as a reconstruction, prediction, evacuation order, or emergency service.
+- [x] Derive the displayed scenario summary from the normalized weather, terrain, fuel, data status, and observation timestamp already used by scoring.
+- [x] Show wind direction/speed, slope, vegetation dryness, step count, and fallback or stale assumptions beside the Canvas.
+- [x] Add focused tests for scenario-summary output when context is complete and when inputs are missing.
+- [x] Verify `npm test` and `npm run build`.
+- [ ] Verify keyboard/accessibility behavior manually in the browser.
+
+### Task 9: Add Official Route Data Only
+
+**Files:**
+- Create: `src/server/providers/evacuation.ts`
+- Create: `src/server/providers/evacuation.test.ts`
+- Modify: `src/domain/environment.ts`
+- Modify: `src/server/environment.ts`
+- Modify: `src/routes/index.tsx`
+- Modify: `README.md`
+
+- [ ] Select an authoritative emergency, evacuation, road-closure, or routing source before adding an adapter; do not infer a route from the risk score.
+- [ ] Keep provider credentials and requests server-side, validate geometry/status/closure timestamps, and expose source attribution.
+- [ ] Render an unavailable state when no official route data is configured or when the source is stale.
+- [ ] Never label a route safest without an authoritative source and current route status.
+- [ ] Test malformed, stale, unavailable, and valid provider responses.
+- [ ] Run `npm test`, `npm run generate-routes`, `npm run build`, and `git diff --check`.
 
 ## Post-MVP Order
 

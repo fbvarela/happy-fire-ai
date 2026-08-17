@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 
 import type { EnvironmentalContext } from '../domain/environment'
 import {
+  describeSimulationScenario,
   type SimulationGrid,
   type SimulationOptions,
   stepSimulation,
@@ -108,6 +109,7 @@ export function FireSimulation({ context }: FireSimulationProps) {
       <p className="simulation-assumptions">
         {describeSimulationAssumptions(context)}
       </p>
+      {context && <p className="simulation-assumptions">{describeSimulationScenario(context)}</p>}
     </section>
   )
 }

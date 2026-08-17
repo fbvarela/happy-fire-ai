@@ -1,3 +1,5 @@
+import type { EnvironmentalContext } from './environment'
+
 export type SimulationCell = 0 | 1 | 2
 export type SimulationGrid = SimulationCell[][]
 
@@ -6,6 +8,18 @@ export type SimulationOptions = {
   windKph: number
   slopeDeg: number
   vegetationDryness: number
+}
+
+export function describeSimulationScenario(context: EnvironmentalContext): string {
+  const wind = context.weather.windKph === null
+    ? 'unavailable'
+    : `${context.weather.windKph} kph from ${context.weather.windDirectionDeg ?? 'unavailable'}°`
+  const slope = context.terrain.slopeDeg === null ? 'unavailable' : `${context.terrain.slopeDeg}°`
+  const dryness = context.fuel.vegetationDryness === null
+    ? 'unavailable'
+    : `${context.fuel.vegetationDryness}%`
+
+  return `Scenario inputs: wind ${wind}, slope ${slope}, vegetation dryness ${dryness}. Data status: ${context.status}. Source observed ${context.observedAt}.`
 }
 
 const neighbors = [
