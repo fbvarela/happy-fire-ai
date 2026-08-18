@@ -35,6 +35,7 @@ h1 { max-width: 680px; margin: 18px 0; color: #f3f7ed; font-size: clamp(42px, 7v
 .location-form label { display: grid; gap: 7px; color: #a8b8ad; font: 500 11px 'DM Mono', monospace; text-transform: uppercase; }
 .range-value { justify-self: end; color: #c7f36b; font: 12px 'DM Mono', monospace; }
 .location-form input { width: 100%; padding: 12px; border: 1px solid #304239; border-radius: 7px; color: #f3f7ed; background: #17221d; }
+.location-form input[type='range'] { padding: 0; accent-color: #c7f36b; }
 .location-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 .primary-button { padding: 13px 18px; border: 0; border-radius: 7px; color: #101714; background: #c7f36b; cursor: pointer; font-weight: 600; }
 .primary-button:hover { background: #d8ff8b; }
