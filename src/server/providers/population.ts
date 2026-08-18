@@ -13,6 +13,7 @@ type WorldPopResponse = {
 }
 
 const normalizeLongitude = (longitude: number) => ((longitude + 180) % 360 + 360) % 360 - 180
+export const worldPopRequestTimeoutMs = 30_000
 const clampLatitude = (latitude: number) => Math.max(-90, Math.min(90, latitude))
 const isTaskId = (value: unknown): value is string | number =>
   (typeof value === 'string' && value.length > 0) || (typeof value === 'number' && Number.isFinite(value))
@@ -62,10 +63,10 @@ const polygonAround = (latitude: number, longitude: number) => {
 
 export const createWorldPopPopulationProvider = (
   fetcher: typeof fetch = fetch,
-  timeoutMs = 10_000,
+  timeoutMs = worldPopRequestTimeoutMs,
   apiKey = process.env.WORLDPOP_API_KEY,
   pollIntervalMs = 1_000,
-  maxPollMs = 10_000,
+  maxPollMs = worldPopRequestTimeoutMs,
 ): PopulationProvider => ({
   async getNearbyPeople(latitude, longitude) {
     const url = new URL('https://api.worldpop.org/v1/services/stats')

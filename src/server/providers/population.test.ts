@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { createWorldPopPopulationProvider } from './population'
+import { createWorldPopPopulationProvider, worldPopRequestTimeoutMs } from './population'
 
 describe('WorldPop population provider', () => {
+  it('allows the documented synchronous WorldPop request window', () => {
+    expect(worldPopRequestTimeoutMs).toBe(30_000)
+  })
+
   it('queries a local polygon and returns total population', async () => {
     const provider = createWorldPopPopulationProvider(async (input) => {
       const url = new URL(input.toString())
