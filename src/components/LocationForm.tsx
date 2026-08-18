@@ -96,12 +96,14 @@ export function LocationForm({ onContext }: LocationFormProps) {
           />
         </label>
         <label>
-          Local festivals/events pressure (0-100)
-          <input type="number" min="0" max="100" step="1" value={festivalPressure} onChange={(event) => setFestivalPressure(event.target.value)} placeholder="Optional" />
+          Local festivals/events pressure
+          <span className="range-value">{festivalPressure || 'Not set'}</span>
+          <input type="range" min="0" max="100" step="1" value={festivalPressure || 0} onChange={(event) => setFestivalPressure(event.target.value)} aria-label="Local festivals and events pressure from 0 to 100" />
         </label>
         <label>
-          Roadside ditch maintenance (0-100)
-          <input type="number" min="0" max="100" step="1" value={roadsideMaintenance} onChange={(event) => setRoadsideMaintenance(event.target.value)} placeholder="Optional" />
+          Roadside ditch maintenance
+          <span className="range-value">{roadsideMaintenance || 'Not set'}</span>
+          <input type="range" min="0" max="100" step="1" value={roadsideMaintenance || 0} onChange={(event) => setRoadsideMaintenance(event.target.value)} aria-label="Roadside ditch maintenance from 0 to 100" />
         </label>
       </div>
       <div className="location-actions">
