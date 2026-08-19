@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { LocationForm } from '../components/LocationForm'
 import { ExplanationPanel } from '../components/ExplanationPanel'
 import { RiskSummary } from '../components/RiskSummary'
+import { ThemeToggle } from '../components/ThemeToggle'
 import type { EnvironmentalContext } from '../domain/environment'
 import { calculateRisk } from '../domain/risk'
 
@@ -20,7 +21,10 @@ function Home() {
           <span className="brand-mark" aria-hidden="true">HF</span>
           <span>Happy Fire</span>
         </a>
-        <span className="status-pill">MVP preview</span>
+        <div className="topbar-actions">
+          <span className="status-pill">MVP preview</span>
+          <ThemeToggle />
+        </div>
       </header>
 
       <section className="hero">
