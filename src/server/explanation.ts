@@ -1,8 +1,12 @@
 import { createServerFn } from '@tanstack/react-start'
 
+import { factorLabels } from '../domain/risk'
 import { createCohereExplanationProvider, type Explanation, type ExplanationInput } from './providers/explanation'
 
-const factorLabels = new Set(['Weather', 'Terrain', 'Fuel', 'Season/weather history', 'Exposure'])
+// Accept exactly the canonical factor labels emitted by calculateRisk; this whitelist used to
+// omit the two manual-input factors, which rejected every real payload with
+// "Invalid explanation input" before the provider was ever called.
+const validFactorLabels = new Set<string>(factorLabels)
 
 export const fallbackExplanation: Explanation = {
   summary: 'This estimate is based on the displayed risk score and drivers.',
@@ -16,8 +20,8 @@ const validateInput = (value: unknown): ExplanationInput => {
   const input = value as Record<string, unknown>
   if (typeof input.score !== 'number' || !Number.isFinite(input.score) || input.score < 0 || input.score > 100 ||
       !['low', 'moderate', 'high', 'extreme'].includes(String(input.level)) ||
-      !Array.isArray(input.factors) || input.factors.length > factorLabels.size ||
-      !input.factors.every((factor) => typeof factor === 'string' && factorLabels.has(factor))) {
+      !Array.isArray(input.factors) || input.factors.length > validFactorLabels.size ||
+      !input.factors.every((factor) => typeof factor === 'string' && validFactorLabels.has(factor))) {
     throw new Error('Invalid explanation input')
   }
   return { score: input.score, level: input.level as ExplanationInput['level'], factors: input.factors as string[] }

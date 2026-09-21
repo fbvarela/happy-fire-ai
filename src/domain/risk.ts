@@ -7,6 +7,18 @@ export type RiskFactor = {
   status: DataStatus
 }
 
+// Canonical factor labels, shared with display and server-side validation so the list can
+// never drift between what calculateRisk emits and what consumers accept.
+export const factorLabels = [
+  'Weather',
+  'Terrain',
+  'Fuel',
+  'Season/weather history',
+  'Exposure',
+  'Local festivals/events',
+  'Roadside maintenance',
+] as const
+
 export type RiskResult = {
   score: number
   level: 'low' | 'moderate' | 'high' | 'extreme'
@@ -84,43 +96,43 @@ export function calculateRisk(context: EnvironmentalContext): RiskResult {
   const factors: RiskFactor[] = [
     {
       id: 'weather',
-      label: 'Weather',
+      label: factorLabels[0],
       contribution: round(weather * 0.3),
       status: factorStatus(context.status, weatherValues),
     },
     {
       id: 'terrain',
-      label: 'Terrain',
+      label: factorLabels[1],
       contribution: round(terrain * 0.2),
       status: factorStatus(context.status, terrainValues),
     },
     {
       id: 'fuel',
-      label: 'Fuel',
+      label: factorLabels[2],
       contribution: round(fuel * 0.2),
       status: factorStatus(context.status, fuelValues),
     },
     {
       id: 'season-weather',
-      label: 'Season/weather history',
+      label: factorLabels[3],
       contribution: round(season * 0.1),
       status: factorStatus(context.status, seasonValues),
     },
     {
       id: 'exposure',
-      label: 'Exposure',
+      label: factorLabels[4],
       contribution: round(exposure * 0.1),
       status: factorStatus(context.status, exposureValues),
     },
     {
       id: 'local-events',
-      label: 'Local festivals/events',
+      label: factorLabels[5],
       contribution: round(events * 0.05),
       status: factorStatus(context.status, eventValues),
     },
     {
       id: 'roadside-maintenance',
-      label: 'Roadside maintenance',
+      label: factorLabels[6],
       contribution: round(maintenance * 0.05),
       status: factorStatus(context.status, maintenanceValues),
     },
