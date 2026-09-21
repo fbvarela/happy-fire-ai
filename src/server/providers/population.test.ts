@@ -86,6 +86,29 @@ describe('WorldPop population provider', () => {
     expect(requests[1]?.pathname).toBe('/v1/tasks/task-123')
   })
 
+  it('polls the live API "started" response until it finishes', async () => {
+    // Captured from api.worldpop.org on 2026-09-21: runasync=false replies with
+    // status "started" plus a taskid; the population arrives via /v1/tasks/{id}.
+    const requests: URL[] = []
+    const provider = createWorldPopPopulationProvider(async (input) => {
+      const url = new URL(input.toString())
+      requests.push(url)
+      return requests.length === 1
+        ? new Response(JSON.stringify({
+            status: 'started',
+            status_code: 200,
+            error: false,
+            error_message: null,
+            data: { total_population: 0 },
+            taskid: '2ec2fab6-d2ee-5582-bdaf-705a0bfc87c1',
+          }))
+        : new Response(JSON.stringify({ status: 'finished', error: false, data: { total_population: 7 } }))
+    }, 1000, undefined, 1, 100)
+
+    await expect(provider.getNearbyPeople(43.35, -2.84)).resolves.toEqual({ nearbyPeople: 7, source: 'worldpop' })
+    expect(requests[1]?.pathname).toBe('/v1/tasks/2ec2fab6-d2ee-5582-bdaf-705a0bfc87c1')
+  })
+
   it('rejects a failed task', async () => {
     const provider = createWorldPopPopulationProvider(async (input) =>
       new Response(JSON.stringify(new URL(input.toString()).pathname.endsWith('/stats')
