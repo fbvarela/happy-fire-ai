@@ -41,6 +41,12 @@ Successful default Open-Meteo responses are cached for 10 minutes per running se
 
 Set `COHERE_API_KEY` to enable the optional explanation for a completed estimate. The key is server-only. AI text is explanatory only: it never changes the numeric score, risk factors, safety notice, or emergency guidance. Without the key, or if Cohere is unavailable, the app shows deterministic fallback text.
 
+## Risk assessment (deterministic) and optional AI advisory
+
+Every risk response includes a deterministic `assessment` object: a risk interval (`low`/`high`), a confidence level, and a per-provider data-quality report (weather, fuel, exposure, road closures). The interval widens only upward when data is missing, stale, or in error — uncertainty extends further toward danger than toward calm, and missing data is never treated as safe.
+
+Set `JEV_AI_ENABLED=true` and `JEV_API_KEY` to additionally request a display-only AI advisory (Jev by TypeSafe) covering data sufficiency, factor-combination anomaly notices, and per-provider reliability. The advisory can only add caution — it can widen the interval's upper bound and append `advisoryWarnings`; it can never narrow the interval or change the score, factors, safety notice, or emergency guidance. When Jev is unset, slow, or failing, the response ships without it. Jev never sees coordinates, the risk score, or any user data — only provider provenance.
+
 ## Manual local context
 
 The form accepts optional 0-100 user-provided estimates for local festival/event pressure and roadside ditch maintenance. Festival pressure contributes ignition/activity risk; higher ditch-maintenance values reduce roadside fuel risk. Both inputs are labeled manual until authoritative municipal or road-authority providers are integrated. The deterministic score is versioned as `mvp-2`.
