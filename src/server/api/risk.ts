@@ -1,5 +1,6 @@
 import type { ManualRiskInputs } from '../../domain/environment'
 import { calculateRisk } from '../../domain/risk'
+import { getRiskAssessmentForRequest } from '../assessment-service'
 import { getEnvironmentContext } from '../environment'
 
 const rateLimit = 60
@@ -65,9 +66,14 @@ export async function handleRiskApiRequest(request: Request): Promise<Response> 
       ...await getEnvironmentContext(latitude, longitude),
       ...manualInputs,
     }
+    const risk = calculateRisk(environment)
+    // Optional env-gated assessment (risk interval, data quality, and — when JEV_AI_ENABLED —
+    // a display-only Jev advisory). Additive fields only; `risk` is unchanged.
+    const assessment = await getRiskAssessmentForRequest(latitude, longitude, environment, risk)
     return json({
       data: {
-        risk: calculateRisk(environment),
+        risk,
+        assessment,
         environment,
         sources: {
           weather: environment.source,

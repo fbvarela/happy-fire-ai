@@ -14,7 +14,7 @@ TanStack Start + TanStack Router + React 19 + TypeScript (strict), server via Ni
 ## Architecture
 
 - `src/domain/` — pure, provider-free logic: `environment.ts` (normalized `EnvironmentalContext`), `risk.ts` (`calculateRisk`, deterministic, `modelVersion: 'mvp-2'`). Never import React or providers here.
-- `src/server/` — server functions (`createServerFn`) and the provider adapter layer. `providers/*.ts` factories accept an injected `fetcher` for tests and gate on `process.env`.
+- `src/server/` — server functions (`createServerFn`) and the provider adapter layer. `providers/*.ts` factories accept an injected `fetcher` for tests and gate on `process.env`. `assessment.ts` is the pure deterministic interval/data-quality layer (no AI); `assessment-service.ts` is its env-gated Jev wrapper.
 - `src/routes/` — TanStack Router file routes; `api/v1/risk.ts` is a Nitro server handler reusing the same scoring pipeline.
 - Providers resolve in `src/server/environment.ts`: each is enabled by env, and every provider failure falls back to the deterministic mock context with a `*Warning` and `status: 'error'` — never a silent success.
 
@@ -25,6 +25,7 @@ TanStack Start + TanStack Router + React 19 + TypeScript (strict), server via Ni
 - Population: `WORLDPOP_ENABLED=true`, optional `WORLDPOP_API_KEY`.
 - Road closures: `DGT_ROAD_CLOSURES_ENABLED=true` (Spain DGT DATEX2; display only, never a route recommendation).
 - AI explanation: `COHERE_API_KEY` (optional, server-only, must never affect the score).
+- AI advisory: `JEV_AI_ENABLED=true` + `JEV_API_KEY` (Jev/TypeSafe, optional, server-only). Adds a display-only advisory (data sufficiency, anomalies, provider reliability) via `src/server/assessment-service.ts`; can only widen the risk interval upward and append warnings — never changes the score.
 
 ## Safety constraints (architectural)
 

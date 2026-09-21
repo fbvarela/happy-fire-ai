@@ -13,6 +13,9 @@ describe('risk REST API', () => {
 
     expect(response.status).toBe(200)
     expect(body.data.risk.modelVersion).toBe('mvp-2')
+    expect(body.data.assessment.interval).toEqual({ low: body.data.risk.score, high: body.data.risk.score })
+    expect(body.data.assessment.confidenceLevel).toBeTypeOf('string')
+    expect(body.data.assessment.advisory).toBeUndefined()
     expect(body.data.environment.latitude).toBe(40)
     expect(body.data.environment.localFestivalPressure).toBe(80)
     expect(body.data.environment.roadsideMaintenance).toBe(20)
@@ -33,6 +36,16 @@ describe('risk REST API', () => {
 
     expect(response.status).toBe(400)
     await expect(response.json()).resolves.toMatchObject({ error: 'Invalid latitude.' })
+  })
+
+  it('returns a deterministic assessment without AI output when Jev is disabled', async () => {
+    delete process.env.JEV_AI_ENABLED
+    const response = await handleRiskApiRequest(request('latitude=40&longitude=-3'))
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.data.assessment.advisory).toBeUndefined()
+    expect(body.data.assessment.advisoryWarnings).toEqual([])
   })
 
   it('returns 429 after the public per-IP limit', async () => {
