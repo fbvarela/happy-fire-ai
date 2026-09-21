@@ -17,6 +17,10 @@ export const worldPopRequestTimeoutMs = 30_000
 const clampLatitude = (latitude: number) => Math.max(-90, Math.min(90, latitude))
 const isTaskId = (value: unknown): value is string | number =>
   (typeof value === 'string' && value.length > 0) || (typeof value === 'number' && Number.isFinite(value))
+// The live API responds to runasync=false with status "started" (plus a taskid) and expects
+// clients to poll /v1/tasks/{id}; older docs described "created". Both mean "poll me".
+const isPendingStatus = (status: unknown): status is 'created' | 'started' =>
+  status === 'created' || status === 'started'
 const getPopulation = (payload: WorldPopResponse) => {
   const totalPopulation = payload.data?.total_population
   if (
@@ -85,7 +89,7 @@ export const createWorldPopPopulationProvider = (
     if (payload.status === 'finished') {
       return { nearbyPeople: getPopulation(payload), source: 'worldpop' }
     }
-    if (payload.status !== 'created' || !isTaskId(payload.taskid)) throw new Error('Invalid WorldPop response')
+    if (!isPendingStatus(payload.status) || !isTaskId(payload.taskid)) throw new Error('Invalid WorldPop response')
 
     const deadline = Date.now() + maxPollMs
     while (true) {
@@ -104,7 +108,7 @@ export const createWorldPopPopulationProvider = (
         return { nearbyPeople: getPopulation(payload), source: 'worldpop' }
       }
       if (payload.status === 'failed' || payload.status === 'error') throw new Error('WorldPop task failed')
-      if (payload.status !== 'created') throw new Error('Invalid WorldPop response')
+      if (!isPendingStatus(payload.status)) throw new Error('Invalid WorldPop response')
     }
   },
 })

@@ -35,10 +35,17 @@ export const getExplanationForRisk = async (
   apiKey = process.env.COHERE_API_KEY,
 ): Promise<Explanation> => {
   const verifiedInput = validateInput(input)
-  if (!apiKey) return fallbackExplanation
+  if (!apiKey) {
+    console.warn('[explanation] key-missing', JSON.stringify({ status: 'fallback' }))
+    return fallbackExplanation
+  }
   try {
     return await (provider ?? createCohereExplanationProvider(apiKey)).explain(verifiedInput)
-  } catch {
+  } catch (error) {
+    console.warn('[explanation] provider-failed', JSON.stringify({
+      status: 'fallback',
+      error: error instanceof Error ? error.message : 'unknown error',
+    }))
     return fallbackExplanation
   }
 }
