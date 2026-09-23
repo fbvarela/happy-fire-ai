@@ -58,4 +58,38 @@ describe('risk explanation server boundary', () => {
       throw new Error('provider should not be reached for a valid payload')
     } }, '')).resolves.toMatchObject({ source: 'fallback' })
   })
+
+  it('skips the provider entirely when the Jev gate says the notice covers it', async () => {
+    let calls = 0
+    const provider = { explain: async () => { calls += 1; throw new Error('should not call') } }
+
+    await expect(getExplanationForRisk(
+      { ...input, gate: { warranted: false, emphasis: 'fuel' } },
+      provider,
+      'test-key',
+    )).resolves.toEqual({
+      summary: 'The available data adds nothing beyond the standard safety notice, so no AI explanation was generated for this estimate.',
+      drivers: ['The displayed drivers and the safety notice cover what the available data supports.'],
+      caveat: 'AI routing is explanatory only and does not change the estimate or emergency guidance.',
+      source: 'skipped',
+    })
+    expect(calls).toBe(0)
+  })
+
+  it('passes the emphasis hint to the provider when the gate warrants an explanation', async () => {
+    let received: unknown
+    const provider = { explain: async (candidate: unknown) => { received = candidate; return { summary: 's', drivers: ['d'], caveat: 'c', source: 'cohere' as const } } }
+
+    await expect(getExplanationForRisk(
+      { ...input, gate: { warranted: true, emphasis: 'weather' } },
+      provider,
+      'test-key',
+    )).resolves.toMatchObject({ source: 'cohere' })
+    expect(received).toEqual({ ...input, gate: { warranted: true, emphasis: 'weather' } })
+  })
+
+  it('explains normally when no gate is present (Jev disabled or advisory failed)', async () => {
+    const provider = { explain: async (candidate: unknown) => candidate }
+    await expect(getExplanationForRisk(input, provider, 'test-key')).resolves.toEqual(input)
+  })
 })

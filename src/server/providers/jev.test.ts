@@ -37,6 +37,8 @@ const completeAnswers = {
   reliability_weather: { type: 'score', score: 3, confidence: 0.85 },
   reliability_fuel: { type: 'score', score: 3, confidence: 0.8 },
   reliability_exposure: { type: 'score', score: 3, confidence: 0.9 },
+  explanation_warranted: { type: 'noul', noul: 0.7 },
+  emphasis_area: { type: 'choice', choice: 'weather', confidence: 0.8 },
 }
 
 const answersPayload = (overrides: Record<string, unknown> = {}) => ({
@@ -72,7 +74,7 @@ describe('Jev provider', () => {
     })
     await provider.assess(context)
     expect(body.model).toBe('jev-latest')
-    expect(Object.keys(body.questions as Record<string, unknown>)).toHaveLength(9)
+    expect(Object.keys(body.questions as Record<string, unknown>)).toHaveLength(11)
     expect(Object.keys(body.state as Record<string, unknown>)).toEqual([
       'weather', 'fuel', 'exposure', 'roadClosures', 'missingInputCount',
     ])
@@ -94,6 +96,23 @@ describe('Jev provider', () => {
       { providerId: 'exposure', level: 'fresh-and-complete' },
     ])
     expect(advisory.flags).toEqual({ dataInconsistency: false, providerConflict: false })
+    expect(advisory.explanationGate).toEqual({ warranted: true, confidence: 0.8, emphasis: 'weather' })
+  })
+
+  it('routes explanations through the confidence gate', async () => {
+    const skipProvider = createJevProvider('test-key', fetchWith(answersPayload({
+      explanation_warranted: { type: 'noul', noul: 0.2 },
+      emphasis_area: { type: 'choice', choice: 'fuel', confidence: 0.1 },
+    })))
+    await expect(skipProvider.assess(context)).resolves.toMatchObject({
+      explanationGate: { warranted: false, confidence: 0.1, emphasis: 'fuel' },
+    })
+    const explainProvider = createJevProvider('test-key', fetchWith(answersPayload({
+      explanation_warranted: { type: 'noul', noul: 0.5 },
+    })))
+    await expect(explainProvider.assess(context)).resolves.toMatchObject({
+      explanationGate: { warranted: true },
+    })
   })
 
   it('flags caution only below the sufficiency threshold', async () => {
@@ -127,7 +146,7 @@ describe('Jev provider', () => {
   it('keeps question wording atomic and never receives the risk score', () => {
     const state = buildProvenanceState(context)
     const questions = buildJevQuestions(state)
-    expect(Object.keys(questions)).toHaveLength(9)
+    expect(Object.keys(questions)).toHaveLength(11)
     for (const question of Object.values(questions)) {
       expect(question.instructions.endsWith('?')).toBe(true)
       expect(question.instructions).not.toContain('risk score')

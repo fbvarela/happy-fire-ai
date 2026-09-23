@@ -1,6 +1,6 @@
 import type { EnvironmentalContext } from '../domain/environment'
 import type { RiskFactor, RiskResult } from '../domain/risk'
-import type { JevAdvisory } from './providers/jev'
+import type { JevAdvisory, JevReliability, JevReliabilityLevel } from './providers/jev'
 
 // Deterministic assessment layer. Everything in this file is pure and provider-free:
 // the risk interval and data-quality report are computed from the EnvironmentalContext and
@@ -127,7 +127,47 @@ export const buildRiskAssessment = (context: EnvironmentalContext, risk: RiskRes
   advisoryWarnings: [],
 })
 
-const jevCautionWarning = 'The AI advisory flagged data-quality concerns; treat the upper bound with additional caution.'
+const reliabilityRank: Record<JevReliabilityLevel, number> = {
+  unusable: 0,
+  degraded: 1,
+  acceptable: 2,
+  'fresh-and-complete': 3,
+}
+const qualityRank: Record<ProviderDataQuality, number> = {
+  error: 0,
+  unavailable: 0,
+  fallback: 1,
+  stale: 1,
+  partial: 2,
+  complete: 3,
+}
+const reliabilityLevelForQuality: Record<ProviderDataQuality, JevReliabilityLevel> = {
+  complete: 'fresh-and-complete',
+  partial: 'acceptable',
+  stale: 'degraded',
+  fallback: 'degraded',
+  unavailable: 'unusable',
+  error: 'unusable',
+}
+
+// Calibration cross-check (spec Idea 1): Jev answers are judgments, not ground truth. When
+// they are *more* optimistic than the deterministic data-quality report, that disagreement
+// is surfaced as a display warning — it never relaxes the deterministic cautionary reading.
+export const calibrationMismatches = (report: RiskAssessmentReport, advisory: JevAdvisory): string[] => {
+  const mismatches: string[] = []
+  for (const reliability of advisory.reliability) {
+    const deterministic = report.dataQuality[reliability.providerId]
+    if (reliabilityRank[reliability.level] > qualityRank[deterministic.quality]) {
+      mismatches.push(
+        `AI advisory rates ${reliability.providerId} data ${reliability.level} while the pipeline reports it as ${deterministic.quality}.`,
+      )
+    }
+  }
+  if (!advisory.dataSufficiency.caution && report.confidenceLevel === 'low') {
+    mismatches.push('AI advisory rates data sufficiency as adequate while the deterministic confidence is low.')
+  }
+  return mismatches
+}
 
 // The only entry point for AI output into the assessment. It can widen the interval upward,
 // append display warnings, and attach the advisory for rendering. It can never narrow the
@@ -144,6 +184,14 @@ export const applyJevCaution = (report: RiskAssessmentReport, advisory: JevAdvis
   if (advisory.anomalies.length > 0) {
     warnings.push(`AI advisory: ${advisory.anomalies.length} factor-combination anomaly notice(s) attached.`)
   }
+  const expectedQuality = (providerId: JevReliability['providerId']) =>
+    reliabilityLevelForQuality[report.dataQuality[providerId].quality]
+  for (const reliability of advisory.reliability) {
+    if (reliabilityRank[reliability.level] < reliabilityRank[expectedQuality(reliability.providerId)]) {
+      warnings.push(`AI advisory rates ${reliability.providerId} data as ${reliability.level}.`)
+    }
+  }
+  for (const mismatch of calibrationMismatches(report, advisory)) warnings.push(mismatch)
   return {
     ...report,
     interval: { ...report.interval, high: round(high) },

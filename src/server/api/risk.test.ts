@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 
 import { handleRiskApiRequest, resetRiskApiRateLimit } from './risk'
 
@@ -6,8 +6,17 @@ const request = (query: string, ip = '203.0.113.10') => new Request(`https://hap
   headers: { 'x-forwarded-for': ip },
 })
 
+// A developer .env.local with JEV_AI_ENABLED=true must not leak into these tests: without
+// the advisory the report is purely deterministic.
+const env = { ...process.env }
+afterEach(() => {
+  process.env = { ...env }
+})
+
 describe('risk REST API', () => {
   it('returns the deterministic risk and environment for valid coordinates', async () => {
+    delete process.env.JEV_AI_ENABLED
+    delete process.env.JEV_API_KEY
     const response = await handleRiskApiRequest(request('latitude=40&longitude=-3&localFestivalPressure=80&roadsideMaintenance=20'))
     const body = await response.json()
 

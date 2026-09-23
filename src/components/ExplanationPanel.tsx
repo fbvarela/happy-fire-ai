@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 
 import type { RiskResult } from '../domain/risk'
+import type { RiskAssessmentReport } from '../server/assessment'
 import { getExplanation } from '../server/explanation'
 import type { Explanation } from '../server/providers/explanation'
 
-type ExplanationPanelProps = { result: RiskResult }
+type ExplanationPanelProps = { result: RiskResult; assessment: RiskAssessmentReport | null }
 
-export function ExplanationPanel({ result }: ExplanationPanelProps) {
+export function ExplanationPanel({ result, assessment }: ExplanationPanelProps) {
   const [explanation, setExplanation] = useState<Explanation | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(false)
@@ -26,8 +27,14 @@ export function ExplanationPanel({ result }: ExplanationPanelProps) {
     setLoading(true)
     setError(false)
     try {
+      const gate = assessment?.advisory?.explanationGate
       const nextExplanation = await getExplanation({
-        data: { score: result.score, level: result.level, factors: result.factors.map(({ label }) => label) },
+        data: {
+          score: result.score,
+          level: result.level,
+          factors: result.factors.map(({ label }) => label),
+          gate: gate ? { warranted: gate.warranted, emphasis: gate.emphasis } : undefined,
+        },
       })
       if (version === requestVersion.current) setExplanation(nextExplanation)
     } catch {
@@ -47,7 +54,11 @@ export function ExplanationPanel({ result }: ExplanationPanelProps) {
           <p className="card-kicker">Optional context</p>
           <h2 id="explanation-title">Estimate explanation</h2>
         </div>
-        {explanation && <span className="muted-label">{explanation.source === 'cohere' ? 'AI assisted' : 'Deterministic fallback'}</span>}
+        {explanation && (
+          <span className="muted-label">
+            {explanation.source === 'cohere' ? 'AI assisted' : explanation.source === 'skipped' ? 'AI skipped' : 'Deterministic fallback'}
+          </span>
+        )}
       </div>
       {!explanation && !error && <p className="muted-copy">Get a plain-language explanation of the displayed estimate.</p>}
       <p className="explanation-status" role="status" aria-live="polite">{loading ? 'Loading explanation...' : ''}</p>
