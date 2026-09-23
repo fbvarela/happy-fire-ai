@@ -30,6 +30,26 @@ describe('Cohere explanation provider', () => {
     })
   })
 
+  it('flattens object-shaped drivers into display strings', async () => {
+    const provider = createCohereExplanationProvider('test-key', async () => new Response(JSON.stringify({
+      message: { content: [{ type: 'text', text: JSON.stringify({
+        summary: 'Dry and windy conditions increase the estimate.',
+        drivers: [
+          { label: 'Low humidity', impact: 'Dries out available fuel.' },
+          'Strong wind',
+        ],
+        caveat: 'This is not an official warning.',
+      }) }] },
+    })))
+
+    await expect(provider.explain({ score: 62, level: 'high', factors: ['Weather'] })).resolves.toEqual({
+      summary: 'Dry and windy conditions increase the estimate.',
+      drivers: ['Low humidity: Dries out available fuel.', 'Strong wind'],
+      caveat: 'This is not an official warning.',
+      source: 'cohere',
+    })
+  })
+
   it('rejects malformed model output', async () => {
     const provider = createCohereExplanationProvider('test-key', async () => new Response(JSON.stringify({
       message: { content: [{ type: 'text', text: '{"summary":"missing fields"}' }] },
@@ -42,7 +62,7 @@ describe('Cohere explanation provider', () => {
     const provider = createCohereExplanationProvider('test-key', async () => new Response(JSON.stringify({
       message: { content: [{ type: 'text', text: JSON.stringify({
         summary: 'x'.repeat(501),
-        drivers: ['one', 'two', 'three', 'four', 'five', 'six'],
+        drivers: ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven'],
         caveat: 'ok',
       }) }] },
     })))
