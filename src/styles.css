@@ -222,6 +222,11 @@ h1 { max-width: 640px; margin: 12px 0 14px; color: var(--text-strong); font-size
 .explanation-copy li { margin: 4px 0; }
 .explanation-caveat, .explanation-error { color: var(--warn-text); font-size: 13px; }
 .explanation-error { color: var(--error-text); }
+.assessment-copy { max-width: 720px; color: var(--text); font-size: 14px; line-height: 1.55; }
+.assessment-copy .card-heading { margin-top: 18px; }
+.assessment-copy .summary-details { margin: 12px 0; }
+.assessment-copy .data-warning { margin: 8px 0 0; }
+.assessment-copy .explanation-caveat { margin: 14px 0 0; }
 .road-status-card h2 { margin: 3px 0 8px; font-size: 20px; font-weight: 600; color: var(--text-strong); }
 
 /* ---------- Responsive / thumb-first ---------- */

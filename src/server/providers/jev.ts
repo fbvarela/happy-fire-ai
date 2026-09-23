@@ -13,6 +13,7 @@ const anomalyWatchThreshold = 0.7
 const anomalyAdvisoryThreshold = 0.85
 const conflictThreshold = 0.7
 const sufficiencyCautionBelow = 2 // below "Adequate" on the 0-3 data_sufficiency scale
+const explanationWarrantedBelow = 0.5 // below this noul, skip the Cohere call entirely
 
 export type JevProvenanceState = {
   weather: {
@@ -43,6 +44,8 @@ export type JevReliability = {
   level: JevReliabilityLevel
 }
 
+export type JevEmphasisArea = 'weather' | 'fuel' | 'terrain' | 'exposure'
+
 export type JevAdvisory = {
   source: 'jev'
   modelVersion?: string
@@ -57,6 +60,12 @@ export type JevAdvisory = {
     dataInconsistency: boolean
     providerConflict: boolean
   }
+  /** Confidence-gated explanation routing (spec Idea 3): decides whether and how to spend a Cohere call. */
+  explanationGate: {
+    warranted: boolean
+    confidence: number
+    emphasis?: JevEmphasisArea
+  }
 }
 
 export type JevAnswer =
@@ -66,6 +75,7 @@ export type JevAnswer =
 
 export type JevQuestion =
   | { type: 'noul'; instructions: string }
+  | { type: 'choice'; instructions: string; criteria: Record<string, string> }
   | { type: 'score'; instructions: string; criteria: string[] }
 
 const reliabilityCriteria = [
@@ -159,6 +169,23 @@ export const buildJevQuestions = (state: JevProvenanceState): Record<string, Jev
     instructions: `How reliable is the population/exposure data from \`exposure\` (source ${state.exposure.source}${state.exposure.warning ? ', provider warning present' : ''})?`,
     criteria: reliabilityCriteria,
   },
+  // Speculative: answered for free in the same fan-out call (spec Idea 3).
+  explanation_warranted: {
+    type: 'noul',
+    instructions:
+      'Given the data quality, staleness, and gaps in this state, is there anything here a non-expert would need explained beyond the standard safety notice — for example confusing provider fallbacks, stale inputs, or contradictions between sources?',
+  },
+  emphasis_area: {
+    type: 'choice',
+    instructions:
+      'Which factor area in this state most deserves narrative focus for a non-expert, given its data quality and warnings?',
+    criteria: {
+      weather: 'The weather data, its staleness, or its provider fallback.',
+      fuel: 'The vegetation/land-cover data quality or fallback.',
+      terrain: 'The terrain data quality.',
+      exposure: 'The population/exposure data quality or fallback.',
+    },
+  },
 })
 
 type JevResponse = { model?: unknown; answers?: unknown }
@@ -205,6 +232,12 @@ const requireScore = (answers: Record<string, JevAnswer>, id: string): { score: 
   return { score: answer.score, confidence: answer.confidence }
 }
 
+const requireChoice = (answers: Record<string, JevAnswer>, id: string): { choice: string; confidence: number } => {
+  const answer = answers[id]
+  if (!answer || answer.type !== 'choice') throw new Error(`Invalid Jev response: missing ${id}`)
+  return { choice: answer.choice, confidence: answer.confidence }
+}
+
 const reliabilityLevels: JevReliabilityLevel[] = ['unusable', 'degraded', 'acceptable', 'fresh-and-complete']
 
 const toReliability = (providerId: JevReliability['providerId'], score: number): JevReliability => ({
@@ -224,6 +257,12 @@ export const buildJevAdvisory = (
   modelVersion?: string,
 ): JevAdvisory => {
   const sufficiency = requireScore(answers, 'data_sufficiency')
+  const warrantedAnswer = requireNoul(answers, 'explanation_warranted')
+  const emphasisAnswer = requireChoice(answers, 'emphasis_area')
+  const emphasis = emphasisAnswer.confidence > 0 &&
+    ['weather', 'fuel', 'terrain', 'exposure'].includes(emphasisAnswer.choice)
+      ? emphasisAnswer.choice as JevEmphasisArea
+      : undefined
   const anomalies: JevAnomaly[] = []
   for (const id of ['wind_fuel_interaction', 'exposure_amplification', 'terrain_fuel_interaction'] as const) {
     const noul = requireNoul(answers, id)
@@ -252,6 +291,11 @@ export const buildJevAdvisory = (
     flags: {
       dataInconsistency: requireNoul(answers, 'data_inconsistency') >= conflictThreshold,
       providerConflict: requireNoul(answers, 'provider_conflict') >= conflictThreshold,
+    },
+    explanationGate: {
+      warranted: warrantedAnswer >= explanationWarrantedBelow,
+      confidence: emphasisAnswer.confidence,
+      emphasis,
     },
   }
 }

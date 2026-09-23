@@ -1,18 +1,50 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
+import { AssessmentPanel } from '../components/AssessmentPanel'
 import { LocationForm } from '../components/LocationForm'
 import { ExplanationPanel } from '../components/ExplanationPanel'
 import { RiskSummary } from '../components/RiskSummary'
 import { ThemeToggle } from '../components/ThemeToggle'
 import type { EnvironmentalContext } from '../domain/environment'
 import { calculateRisk } from '../domain/risk'
+import type { RiskAssessmentReport } from '../server/assessment'
+import { getRiskAssessment } from '../server/assessment-service'
 
 export const Route = createFileRoute('/')({ component: Home })
 
 function Home() {
   const [context, setContext] = useState<EnvironmentalContext | null>(null)
+  const [assessment, setAssessment] = useState<RiskAssessmentReport | null>(null)
+  const [assessmentLoading, setAssessmentLoading] = useState(false)
   const risk = context ? calculateRisk(context) : null
+  const contextKey = context
+    ? `${context.latitude}:${context.longitude}:${context.localFestivalPressure ?? ''}:${context.roadsideMaintenance ?? ''}:${context.cacheStatus}:${context.source}`
+    : ''
+
+  useEffect(() => {
+    if (!context) {
+      setAssessment(null)
+      return
+    }
+    let cancelled = false
+    setAssessmentLoading(true)
+    getRiskAssessment({
+      data: {
+        latitude: context.latitude,
+        longitude: context.longitude,
+        localFestivalPressure: context.localFestivalPressure ?? null,
+        roadsideMaintenance: context.roadsideMaintenance ?? null,
+      },
+    }).then((report) => {
+      if (!cancelled) setAssessment(report)
+    }).catch(() => {
+      if (!cancelled) setAssessment(null)
+    }).finally(() => {
+      if (!cancelled) setAssessmentLoading(false)
+    })
+    return () => { cancelled = true }
+  }, [contextKey])
 
   return (
     <main className="app-shell">
@@ -61,7 +93,9 @@ function Home() {
         </article>
       </section>
 
-      {risk && <ExplanationPanel result={risk} />}
+      {risk && <ExplanationPanel result={risk} assessment={assessment} />}
+
+      {risk && <AssessmentPanel assessment={assessment} loading={assessmentLoading} />}
 
       {context && (
         <article className="info-card road-status-card" aria-labelledby="road-status-title">

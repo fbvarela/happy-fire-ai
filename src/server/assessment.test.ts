@@ -156,11 +156,26 @@ describe('Jev caution application', () => {
       dataSufficiency: { score: 3, confidence: 0.95, caution: false },
       anomalies: [],
       flags: { dataInconsistency: false, providerConflict: false },
+      // Reliability judgments that agree with the deterministic data-quality report.
+      reliability: [{ providerId: 'weather', level: 'fresh-and-complete' }],
     }
     const cautioned = applyJevCaution(report, clean)
     expect(cautioned.interval).toEqual(report.interval)
     expect(cautioned.advisoryWarnings).toEqual([])
     expect(cautioned.advisory).toEqual(clean)
+  })
+
+  it('surfaces a reliability judgment more pessimistic than the pipeline', () => {
+    const report = buildRiskAssessment(baseContext, risk)
+    const pessimistic: JevAdvisory = {
+      ...advisory,
+      dataSufficiency: { score: 3, confidence: 0.95, caution: false },
+      anomalies: [],
+      flags: { dataInconsistency: false, providerConflict: false },
+    }
+    const cautioned = applyJevCaution(report, pessimistic)
+    expect(cautioned.interval).toEqual(report.interval)
+    expect(cautioned.advisoryWarnings).toEqual(['AI advisory rates weather data as degraded.'])
   })
 
   it('never exceeds the 0-100 score range', () => {

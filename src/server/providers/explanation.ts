@@ -2,13 +2,15 @@ export type ExplanationInput = {
   score: number
   level: 'low' | 'moderate' | 'high' | 'extreme'
   factors: string[]
+  /** Confidence-gated routing (spec Idea 3): set from the Jev advisory's explanationGate. */
+  gate?: { warranted: boolean; emphasis?: 'weather' | 'fuel' | 'terrain' | 'exposure' }
 }
 
 export type Explanation = {
   summary: string
   drivers: string[]
   caveat: string
-  source: 'cohere' | 'fallback'
+  source: 'cohere' | 'fallback' | 'skipped'
 }
 
 type CohereResponse = {
@@ -61,7 +63,7 @@ export const createCohereExplanationProvider = (
         response_format: { type: 'json_object' },
         messages: [{
           role: 'user',
-          content: `Explain this verified wildfire risk estimate. The numeric score is authoritative and must not be changed. Score: ${input.score}. Level: ${input.level}. Factor labels: ${input.factors.join(', ')}. Return only JSON with summary (string), drivers (array of strings), and caveat (string).`,
+          content: `Explain this verified wildfire risk estimate. The numeric score is authoritative and must not be changed. Score: ${input.score}. Level: ${input.level}. Factor labels: ${input.factors.join(', ')}.${input.gate?.emphasis ? ` Give particular narrative emphasis to the ${input.gate.emphasis} factor.` : ''} Return only JSON with summary (string), drivers (array of strings), and caveat (string).`,
         }],
       }),
     })

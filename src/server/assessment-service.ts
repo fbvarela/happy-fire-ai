@@ -1,6 +1,10 @@
-import type { EnvironmentalContext } from '../domain/environment'
+import { createServerFn } from '@tanstack/react-start'
+
+import type { EnvironmentalContext, ManualRiskInputs } from '../domain/environment'
 import type { RiskResult } from '../domain/risk'
+import { calculateRisk } from '../domain/risk'
 import { applyJevCaution, buildRiskAssessment, type RiskAssessmentReport } from './assessment'
+import { getEnvironmentContext } from './environment'
 import { createJevProvider } from './providers/jev'
 
 // Env-gated advisory service. When JEV_AI_ENABLED=true and JEV_API_KEY are set, a Jev
@@ -79,3 +83,36 @@ export const getRiskAssessmentForRequest = async (
     return report
   }
 }
+
+const validateAssessmentRequest = (value: unknown): { latitude: number; longitude: number } & ManualRiskInputs => {
+  if (!value || typeof value !== 'object') throw new Error('Invalid assessment input')
+  const input = value as Record<string, unknown>
+  const isNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
+  const isScore = (v: unknown): v is number | null => v === null || (isNumber(v) && v >= 0 && v <= 100)
+  if (!isNumber(input.latitude) || input.latitude < -90 || input.latitude > 90 ||
+      !isNumber(input.longitude) || input.longitude < -180 || input.longitude > 180 ||
+      !isScore(input.localFestivalPressure) || !isScore(input.roadsideMaintenance)) {
+    throw new Error('Invalid assessment input')
+  }
+  return {
+    latitude: input.latitude,
+    longitude: input.longitude,
+    localFestivalPressure: input.localFestivalPressure,
+    roadsideMaintenance: input.roadsideMaintenance,
+  }
+}
+
+// Server function for the dashboard: the environment is rebuilt server-side (never trusted
+// from the client), the deterministic score is recomputed, and the env-gated assessment —
+// including the optional Jev advisory — is attached. Additive fields only.
+export const getRiskAssessment = createServerFn({ method: 'POST' })
+  .validator(validateAssessmentRequest)
+  .handler(async ({ data }) => {
+    const context: EnvironmentalContext = {
+      ...await getEnvironmentContext(data.latitude, data.longitude),
+      localFestivalPressure: data.localFestivalPressure,
+      roadsideMaintenance: data.roadsideMaintenance,
+    }
+    const risk = calculateRisk(context)
+    return getRiskAssessmentForRequest(data.latitude, data.longitude, context, risk)
+  })

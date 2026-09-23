@@ -42,6 +42,7 @@ const jevAdvisory: JevAdvisory = {
     { providerId: 'exposure', level: 'fresh-and-complete' },
   ],
   flags: { dataInconsistency: false, providerConflict: false },
+  explanationGate: { warranted: true, confidence: 0.8, emphasis: 'weather' },
 }
 
 const env = { ...process.env }
@@ -53,6 +54,8 @@ afterEach(() => {
 
 describe('assessment service', () => {
   it('returns a deterministic report with no advisory when Jev is not configured', async () => {
+    delete process.env.JEV_AI_ENABLED
+    delete process.env.JEV_API_KEY
     const risk = calculateRisk(context)
     const report = await getRiskAssessmentForRequest(40, -3, context, risk)
     expect(report.advisory).toBeUndefined()
@@ -80,6 +83,8 @@ describe('assessment service', () => {
           reliability_weather: { type: 'score', score: 3, confidence: 0.95 },
           reliability_fuel: { type: 'score', score: 3, confidence: 0.95 },
           reliability_exposure: { type: 'score', score: 3, confidence: 0.95 },
+          explanation_warranted: { type: 'noul', noul: 0.9 },
+          emphasis_area: { type: 'choice', choice: 'weather', confidence: 0.8 },
         },
       })) as unknown as typeof fetch
     }) as typeof fetch
