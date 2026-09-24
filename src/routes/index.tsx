@@ -1,7 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { AssessmentPanel } from '../components/AssessmentPanel'
+import { buildComposite, computeTrends, HazardGrid, type HazardTrends } from '../components/HazardGrid'
+import type { CompositeScore } from '../domain/composite'
 import { LocationForm } from '../components/LocationForm'
 import { ExplanationPanel } from '../components/ExplanationPanel'
 import { RiskSummary } from '../components/RiskSummary'
@@ -18,9 +20,27 @@ function Home() {
   const [assessment, setAssessment] = useState<RiskAssessmentReport | null>(null)
   const [assessmentLoading, setAssessmentLoading] = useState(false)
   const risk = context ? calculateRisk(context) : null
+  const composite = context ? buildComposite(context) : null
   const contextKey = context
     ? `${context.latitude}:${context.longitude}:${context.localFestivalPressure ?? ''}:${context.roadsideMaintenance ?? ''}:${context.cacheStatus}:${context.source}`
     : ''
+  const locationKey = context ? `${context.latitude}:${context.longitude}` : ''
+  const [trends, setTrends] = useState<HazardTrends>({})
+  const previousCompositeRef = useRef<{ key: string; composite: CompositeScore } | null>(null)
+
+  useEffect(() => {
+    if (!composite || !locationKey) {
+      setTrends({})
+      return
+    }
+    const previous = previousCompositeRef.current
+    if (previous && previous.key === locationKey) {
+      setTrends(computeTrends(previous.composite, composite))
+    } else {
+      setTrends({})
+    }
+    previousCompositeRef.current = { key: locationKey, composite }
+  }, [contextKey])
 
   useEffect(() => {
     if (!context) {
@@ -70,14 +90,16 @@ function Home() {
       </section>
 
       <section className="dashboard-grid" aria-label="Risk dashboard">
-        {risk && context ? <RiskSummary result={risk} context={context} /> : (
+        {composite && context ? (
+          <HazardGrid composite={composite} context={context} trends={trends} />
+        ) : (
           <article className="risk-card risk-empty" aria-live="polite">
             <div className="card-heading">
-              <span>Current risk</span>
+              <span>Overall risk</span>
               <span className="muted-label">No location selected</span>
             </div>
             <div className="score-placeholder">--</div>
-            <p className="muted-copy">Select a location to calculate a transparent score.</p>
+            <p className="muted-copy">Select a location to calculate multi-hazard scores.</p>
             <div className="meter" aria-hidden="true"><span /></div>
           </article>
         )}
@@ -92,6 +114,8 @@ function Home() {
           </ul>
         </article>
       </section>
+
+      {risk && context && <RiskSummary result={risk} context={context} />}
 
       {risk && <ExplanationPanel result={risk} assessment={assessment} />}
 

@@ -10,11 +10,17 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiV1HazardsRouteImport } from './routes/api/v1/hazards'
 import { Route as ApiV1RiskRouteImport } from './routes/api/v1/risk'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiV1HazardsRoute = ApiV1HazardsRouteImport.update({
+  id: '/api/v1/hazards',
+  path: '/api/v1/hazards',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiV1RiskRoute = ApiV1RiskRouteImport.update({
@@ -25,27 +31,31 @@ const ApiV1RiskRoute = ApiV1RiskRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/v1/hazards': typeof ApiV1HazardsRoute
   '/api/v1/risk': typeof ApiV1RiskRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/v1/hazards': typeof ApiV1HazardsRoute
   '/api/v1/risk': typeof ApiV1RiskRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/v1/hazards': typeof ApiV1HazardsRoute
   '/api/v1/risk': typeof ApiV1RiskRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/v1/risk'
+  fullPaths: '/' | '/api/v1/hazards' | '/api/v1/risk'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/v1/risk'
-  id: '__root__' | '/' | '/api/v1/risk'
+  to: '/' | '/api/v1/hazards' | '/api/v1/risk'
+  id: '__root__' | '/' | '/api/v1/hazards' | '/api/v1/risk'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiV1HazardsRoute: typeof ApiV1HazardsRoute
   ApiV1RiskRoute: typeof ApiV1RiskRoute
 }
 
@@ -56,6 +66,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/hazards': {
+      id: '/api/v1/hazards'
+      path: '/api/v1/hazards'
+      fullPath: '/api/v1/hazards'
+      preLoaderRoute: typeof ApiV1HazardsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/v1/risk': {
@@ -70,6 +87,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiV1HazardsRoute: ApiV1HazardsRoute,
   ApiV1RiskRoute: ApiV1RiskRoute,
 }
 export const routeTree = rootRouteImport

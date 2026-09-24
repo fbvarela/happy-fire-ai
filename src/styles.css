@@ -208,6 +208,35 @@ h1 { max-width: 640px; margin: 12px 0 14px; color: var(--text-strong); font-size
 
 .data-source-note { margin: 14px 0 0; color: var(--text-dim); font: 12px/1.5 'DM Mono', monospace; }
 
+/* ---------- Multi-hazard grid ---------- */
+.hazard-grid .score-value { color: var(--text-strong); }
+.hazard-group { margin-top: 14px; border-top: 1px solid var(--border); }
+.hazard-group summary {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 0; cursor: pointer; list-style: none;
+}
+.hazard-group summary::-webkit-details-marker { display: none; }
+.hazard-group summary::before { content: '+'; color: var(--text-dim); font: 500 16px 'DM Mono', monospace; }
+.hazard-group[open] summary::before { content: '–'; }
+.hazard-group-name { flex: 1; color: var(--text-strong); font-weight: 600; font-size: 15px; }
+.hazard-group-score { color: var(--accent-text); font: 500 14px 'DM Mono', monospace; }
+.hazard-list { display: grid; gap: 0; padding: 0; margin: 0 0 8px; list-style: none; }
+.hazard-row {
+  display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 16px;
+  padding: 10px 0; border-bottom: 1px solid var(--border); color: var(--text); font-size: 14px;
+}
+.hazard-row:last-child { border-bottom: 0; }
+.hazard-warning { grid-column: 1 / -1; margin: 2px 0 0; color: var(--warn-text); font-size: 11px; line-height: 1.4; }
+.hazard-name { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.hazard-band { font-size: 11px; }
+.hazard-trend { color: var(--text-dim); font: 500 11px 'DM Mono', monospace; }
+.hazard-trend-up { color: var(--risk-high); }
+.hazard-trend-down { color: var(--risk-low); }
+.hazard-value { display: grid; justify-items: end; gap: 2px; }
+.hazard-score { color: var(--accent-text); font: 500 15px 'DM Mono', monospace; }
+.hazard-freshness { color: var(--text-dim); font: 10px 'DM Mono', monospace; }
+.hazard-status { padding: 2px 6px; border-radius: 4px; color: var(--risk-moderate); background: color-mix(in srgb, var(--risk-moderate) 16%, transparent); font: 10px 'DM Mono', monospace; letter-spacing: .04em; text-transform: uppercase; }
+
 /* ---------- Explanation + road status ---------- */
 .explanation-panel, .road-status-card { margin-top: 14px; }
 .explanation-panel { padding: 22px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); }
