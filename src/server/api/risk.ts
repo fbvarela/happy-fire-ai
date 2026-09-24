@@ -1,5 +1,6 @@
 import type { ManualRiskInputs } from '../../domain/environment'
-import { calculateRisk } from '../../domain/risk'
+import { calculateComposite, parseRiskWeights } from '../../domain/composite'
+import { calculateHazardScores, calculateRisk, hazardScoreById } from '../../domain/hazards'
 import { getRiskAssessmentForRequest } from '../assessment-service'
 import { getEnvironmentContext } from '../environment'
 
@@ -66,12 +67,22 @@ export async function handleRiskApiRequest(request: Request): Promise<Response> 
       ...await getEnvironmentContext(latitude, longitude),
       ...manualInputs,
     }
+    // Wildfire keeps its own deterministic model and detail factors; every hazard gets a
+    // 0-100 score and the composite layer averages/weights them. `score` (and `overall`)
+    // is the composite; `risk.score` remains the wildfire score.
     const risk = calculateRisk(environment)
+    const hazardScores = calculateHazardScores(environment)
+    const composite = calculateComposite(hazardScores, parseRiskWeights(process.env.RISK_WEIGHTS))
     // Optional env-gated assessment (risk interval, data quality, and — when JEV_AI_ENABLED —
     // a display-only Jev advisory). Additive fields only; `risk` is unchanged.
     const assessment = await getRiskAssessmentForRequest(latitude, longitude, environment, risk)
     return json({
       data: {
+        score: composite.overall,
+        overall: composite.overall,
+        hazards: hazardScoreById(hazardScores),
+        groups: composite.groups,
+        weights: composite.weights,
         risk,
         assessment,
         environment,
@@ -80,6 +91,11 @@ export async function handleRiskApiRequest(request: Request): Promise<Response> 
           fuel: environment.fuelSource,
           exposure: environment.exposureSource,
           roadClosures: environment.roadClosureSource ?? null,
+          radioactivity: environment.radioactivity?.source ?? null,
+          waterPollution: environment.waterPollution?.source ?? null,
+          radon: environment.radon?.source ?? null,
+          flood: environment.flood?.source ?? null,
+          airQuality: environment.airQuality?.source ?? null,
         },
         disclaimer: 'This is an informational estimate, not an official warning, prediction, or evacuation order.',
       },

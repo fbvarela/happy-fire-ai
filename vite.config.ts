@@ -7,6 +7,9 @@ import { nitro } from 'nitro/vite'
 
 const config = defineConfig({
   resolve: { tsconfigPaths: true },
+  test: {
+    setupFiles: ['./src/test-setup.ts'],
+  },
   plugins: [
     nitro({ preset: 'vercel', rollupConfig: { external: [/^@sentry\//] } }),
 

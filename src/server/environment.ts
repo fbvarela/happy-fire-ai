@@ -1,7 +1,9 @@
 import { createServerFn } from '@tanstack/react-start'
 
 import type { EnvironmentalContext, ManualRiskInputs } from '../domain/environment'
+import { getHazardProvidersFromEnv, getMockHazardContexts, resolveHazardContexts, type HazardProviderConfig } from './hazard-environment'
 import { createCopernicusLandCoverProvider, type LandCoverProvider } from './providers/landcover'
+
 import { createOpenMeteoWeatherProvider, type WeatherProvider } from './providers/weather'
 import { createWorldPopPopulationProvider, type PopulationProvider } from './providers/population'
 import { createDgtRoadClosureProvider, type RoadClosureProvider } from './providers/evacuation'
@@ -29,10 +31,12 @@ const weatherCache = new Map<string, {
   roadClosureSource?: EnvironmentalContext['roadClosureSource']
   roadClosureObservedAt?: string
   roadClosureWarning?: string
+  hazards: Pick<EnvironmentalContext, 'radioactivity' | 'waterPollution' | 'radon' | 'flood' | 'airQuality'>
   source: EnvironmentalContext['source']
   sourceTimestamp: string
   expiresAt: number
 }>()
+
 const isNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
 const isHumidity = (value: unknown): value is number | null => value === null || (isNumber(value) && value >= 0 && value <= 100)
 const isNonNegative = (value: unknown): value is number | null => value === null || (isNumber(value) && value >= 0)
@@ -139,6 +143,7 @@ const getMockContext = (latitude: number, longitude: number): EnvironmentalConte
     },
     seasonWeatherProxy: Math.round((40 + longitudeSignal * 45) * 10) / 10,
     roadClosures: [],
+    ...getMockHazardContexts(latitude, longitude),
   }
 }
 
@@ -149,6 +154,7 @@ export const getEnvironmentContext = async (
   landCoverProvider?: LandCoverProvider,
   populationProvider?: PopulationProvider,
   roadClosureProvider?: RoadClosureProvider,
+  hazardProviders?: HazardProviderConfig,
 ): Promise<EnvironmentalContext> => {
   validateCoordinates({ latitude, longitude })
   const fallback = getMockContext(latitude, longitude)
@@ -172,7 +178,10 @@ export const getEnvironmentContext = async (
   const configuredRoadClosures = roadClosureProvider ?? (
     process.env.DGT_ROAD_CLOSURES_ENABLED === 'true' ? createDgtRoadClosureProvider() : undefined
   )
-  if (!weatherProvider && !configuredLandCover && !configuredPopulation && !configuredRoadClosures) return fallback
+  if (!weatherProvider && !configuredLandCover && !configuredPopulation && !configuredRoadClosures) {
+    const hazards = hazardProviders ?? getHazardProvidersFromEnv()
+    return { ...fallback, ...(await resolveHazardContexts(latitude, longitude, hazards)) }
+  }
 
   const cacheEnabled = provider === undefined
   const cacheKey = getCacheKey(
@@ -211,6 +220,7 @@ export const getEnvironmentContext = async (
         roadClosureSource: cached.roadClosureSource,
         roadClosureObservedAt: cached.roadClosureObservedAt,
         roadClosureWarning: cached.roadClosureWarning,
+        ...cached.hazards,
         observedAt: cached.sourceTimestamp,
         status: getFreshnessStatus(cached.sourceTimestamp),
         source: cached.source,
@@ -308,6 +318,7 @@ export const getEnvironmentContext = async (
     const sourceTimestamp = weatherProvider?.sourceTimestamp ?? new Date().toISOString()
     const sourceTime = Date.parse(sourceTimestamp)
     if (Number.isNaN(sourceTime)) throw new Error('Invalid provider timestamp')
+    const hazards = await resolveHazardContexts(latitude, longitude, hazardProviders ?? getHazardProvidersFromEnv())
     if (cacheEnabled) {
       const now = Date.now()
       pruneWeatherCache(now)
@@ -328,6 +339,7 @@ export const getEnvironmentContext = async (
         roadClosureSource,
         roadClosureObservedAt,
         roadClosureWarning,
+        hazards,
         source: weatherProvider ? 'open-meteo' : 'mock',
         sourceTimestamp,
         expiresAt: now + cacheTtlMs,
@@ -352,6 +364,7 @@ export const getEnvironmentContext = async (
       roadClosureSource,
       roadClosureObservedAt,
       roadClosureWarning,
+      ...hazards,
       observedAt: sourceTimestamp,
       status: getFreshnessStatus(sourceTimestamp),
       source: weatherProvider ? 'open-meteo' : 'mock',
