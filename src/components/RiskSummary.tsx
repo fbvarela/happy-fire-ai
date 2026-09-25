@@ -21,16 +21,21 @@ export function RiskSummary({ result, context }: RiskSummaryProps) {
   return (
     <article className="risk-card risk-summary" aria-labelledby="risk-summary-title">
       <div className="card-heading">
-        <span id="risk-summary-title">Current risk</span>
-        <span className={`risk-level risk-level-${result.level}`}>{result.level} risk</span>
+        <span id="risk-summary-title">Current wildfire risk</span>
+        <span className={`risk-level risk-level-${result.level}`}>{result.level} wildfire risk</span>
       </div>
+      <p className="muted-copy">
+        Estimated wildfire danger right now at this location, scored 0–100 from weather,
+        terrain, fuel dryness, nearby population, and the manual inputs below. 0 means
+        very low danger, 100 means extreme.
+      </p>
       <div className="score-row">
-        <div className="score-value" aria-label={`Risk score ${result.score} out of 100`}>
+        <div className="score-value" aria-label={`Wildfire risk score ${result.score} out of 100`}>
           {result.score}
         </div>
         <div className="score-meta">
           <strong>{result.confidence}%</strong>
-          <span>confidence</span>
+          <span>confidence in this estimate</span>
         </div>
       </div>
       <p className="safety-note">
