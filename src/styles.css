@@ -110,6 +110,38 @@ h1 { max-width: 640px; margin: 12px 0 14px; color: var(--text-strong); font-size
 
 /* ---------- Location form ---------- */
 .location-form { display: grid; gap: 14px; }
+.location-search { display: grid; gap: 8px; }
+.search-field { position: relative; display: flex; }
+.search-field input[type='search'] {
+  width: 100%; min-height: 46px; padding: 0 48px 0 12px;
+  border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+  color: var(--text); background: var(--surface);
+  transition: border-color 0.15s ease;
+}
+.search-field input[type='search']:hover { border-color: var(--accent-text); }
+.search-icon-button {
+  position: absolute; top: 50%; right: 6px; transform: translateY(-50%);
+  display: grid; place-items: center;
+  width: 34px; height: 34px; padding: 0;
+  border: 0; border-radius: var(--radius-sm);
+  color: var(--text-muted); background: transparent; cursor: pointer;
+  transition: color 0.15s ease;
+}
+.search-icon-button:hover { color: var(--accent-text); }
+.search-icon-button:disabled { cursor: wait; opacity: .6; }
+.search-icon-button svg { width: 18px; height: 18px; }
+.search-spinner { animation: search-spin 0.8s linear infinite; }
+@keyframes search-spin { to { transform: rotate(360deg); } }
+.location-results { display: grid; gap: 6px; padding: 0; margin: 0; list-style: none; }
+.location-results button {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  width: 100%; padding: 10px 12px; text-align: left;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  color: var(--text); background: var(--surface-2); cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+.location-results button:hover, .location-results button.is-highlighted { border-color: var(--accent-text); }
+.location-results .result-coords { color: var(--text-dim); font: 12px 'DM Mono', monospace; white-space: nowrap; }
 .location-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 200px)); gap: 12px; }
 .location-form label { display: grid; gap: 6px; color: var(--text-muted); font: 500 11px 'DM Mono', monospace; letter-spacing: .04em; text-transform: uppercase; }
 .range-value { justify-self: end; color: var(--accent-text); font: 12px 'DM Mono', monospace; }
@@ -275,4 +307,5 @@ h1 { max-width: 640px; margin: 12px 0 14px; color: var(--text-strong); font-size
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
+  .search-spinner { animation: none !important; }
 }

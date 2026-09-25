@@ -21,6 +21,7 @@ TanStack Start + TanStack Router + React 19 + TypeScript (strict), server via Ni
 ## Provider env gates (all server-only)
 
 - Weather: `WEATHER_PROVIDER=open-meteo` (unset/mock = deterministic mock). Open-Meteo also supplies elevation/slope.
+- Location search: `GEOCODING_PROVIDER=nominatim` (OpenStreetMap Nominatim, global, no key; unset/mock = deterministic mock results, always labelled).
 - Land cover: `CDSE_CLIENT_ID` + `CDSE_CLIENT_SECRET` or `CDSE_ACCESS_TOKEN` (Copernicus).
 - Population: `WORLDPOP_ENABLED=true`, optional `WORLDPOP_API_KEY`.
 - Road closures: `DGT_ROAD_CLOSURES_ENABLED=true` (Spain DGT DATEX2; display only, never a route recommendation).
