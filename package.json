@@ -17,12 +17,14 @@
     "@tanstack/react-router": "latest",
     "@tanstack/react-start": "latest",
     "geotiff": "^3.0.5",
+    "leaflet": "^1.9.4",
     "nitro": "3.0.260610-beta",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },
   "devDependencies": {
     "@tanstack/router-cli": "^1.132.0",
+    "@types/leaflet": "^1.9.22",
     "@types/node": "^22.10.2",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",

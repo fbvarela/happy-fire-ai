@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
 
 import { AssessmentPanel } from '../components/AssessmentPanel'
+import { FirmsPanel } from '../components/FirmsPanel'
 import { buildComposite, computeTrends, HazardGrid, type HazardTrends } from '../components/HazardGrid'
 import type { CompositeScore } from '../domain/composite'
 import { LocationForm } from '../components/LocationForm'
@@ -10,6 +11,8 @@ import { RiskSummary } from '../components/RiskSummary'
 import { ThemeToggle } from '../components/ThemeToggle'
 import type { EnvironmentalContext } from '../domain/environment'
 import { calculateRisk } from '../domain/risk'
+import type { NasaOverlays } from '../server/nasa-overlays'
+import { getNasaOverlays } from '../server/nasa-overlays'
 import type { RiskAssessmentReport } from '../server/assessment'
 import { getRiskAssessment } from '../server/assessment-service'
 
@@ -19,6 +22,7 @@ function Home() {
   const [context, setContext] = useState<EnvironmentalContext | null>(null)
   const [assessment, setAssessment] = useState<RiskAssessmentReport | null>(null)
   const [assessmentLoading, setAssessmentLoading] = useState(false)
+  const [overlays, setOverlays] = useState<NasaOverlays | null>(null)
   const risk = context ? calculateRisk(context) : null
   const composite = context ? buildComposite(context) : null
   const contextKey = context
@@ -41,6 +45,22 @@ function Home() {
     }
     previousCompositeRef.current = { key: locationKey, composite }
   }, [contextKey])
+
+  useEffect(() => {
+    if (!context) {
+      setOverlays(null)
+      return
+    }
+    let cancelled = false
+    getNasaOverlays({
+      data: { latitude: context.latitude, longitude: context.longitude },
+    }).then((result) => {
+      if (!cancelled) setOverlays(result)
+    }).catch(() => {
+      if (!cancelled) setOverlays(null)
+    })
+    return () => { cancelled = true }
+  }, [locationKey])
 
   useEffect(() => {
     if (!context) {
@@ -142,6 +162,13 @@ function Home() {
           )}
           {context.roadClosureObservedAt && <p className="data-source-note">DGT source observed {context.roadClosureObservedAt}. Verify current road signs and official instructions.</p>}
         </article>
+      )}
+
+      {overlays && context && (
+        <FirmsPanel
+          overlay={overlays.firms}
+          location={{ latitude: context.latitude, longitude: context.longitude }}
+        />
       )}
 
     </main>
