@@ -19,6 +19,10 @@ for (const key of [
   'COHERE_API_KEY',
   'JEV_AI_ENABLED',
   'JEV_API_KEY',
+  'FIRMS_MAP_KEY',
+  'FIRMS_MIN_CONFIDENCE',
+  'FIRMS_DAY_RANGE',
+  'FIRMS_SOURCE',
 ]) {
   delete process.env[key]
 }

@@ -26,6 +26,7 @@ TanStack Start + TanStack Router + React 19 + TypeScript (strict), server via Ni
 - Population: `WORLDPOP_ENABLED=true`, optional `WORLDPOP_API_KEY`.
 - Road closures: `DGT_ROAD_CLOSURES_ENABLED=true` (Spain DGT DATEX2; display only, never a route recommendation).
 - Air quality: `AIR_QUALITY_PROVIDER=open-meteo` (Open-Meteo Air Quality / CAMS, global, no key).
+- Active fire detections (NASA FIRMS): `FIRMS_MAP_KEY` (presence enables live Area API queries; the key is server-only). Optional `FIRMS_SOURCE`, `FIRMS_MIN_CONFIDENCE` (low|nominal|high), `FIRMS_DAY_RANGE` (1–7). Unset/mock = deterministic mock detections; display-only overlays via `src/server/nasa-overlays.ts` and `/api/v1/nasa-overlays` (rate-limited 60/min per IP). Fire map image served via `src/server/nasa-fire-map.ts` and `/api/v1/nasa-fire-map` (WMS proxy, rate-limited 30/min per IP; PNG, 10-min caches) so `FIRMS_MAP_KEY` never reaches the client. The dashboard renders an interactive Leaflet map (`src/components/FireMap.tsx`) with OpenStreetMap raster tiles (client-side, no key, attribution required) and FIRMS markers from the overlay API; the WMS proxy remains available for static-image use.
 - Flood: `FLOOD_PROVIDER=open-meteo` (Open-Meteo Flood / GloFAS river discharge, global, no key).
 - Radioactivity: `RADIOACTIVITY_PROVIDER=bfs` (Germany BfS ODL-Info WFS, µSv/h) or `safecast` (global citizen-science CPM, sparse/stale).
 - Water pollution: `WATER_POLLUTION_PROVIDER=eea-bathing` (EEA bathing-water classification, Europe) or `eea-pfas` (EEA PFAS monitoring concentrations, sparse).
@@ -46,3 +47,4 @@ TanStack Start + TanStack Router + React 19 + TypeScript (strict), server via Ni
 - Weather context is cached in-process (10 min TTL, 32 entries, 90 min staleness threshold); API `/api/v1/risk` rate-limits per-IP 60/min in-process. Both reset per server instance.
 - Aliases `#/*` (package.json `imports`) and `@/*` (tsconfig) both map to `./src/*`; existing code mostly uses relative imports.
 - `npm run build` requires a fresh `node_modules` (no lockfile-present node_modules right now); no CI workflows exist in this repo.
+- Nitro's Vite dev middleware treats requests by `Sec-Fetch-Dest` (`node_modules/nitro/dist/_build/vite.dev.mjs`): an `<img src="/api/...">` sends `image` and is misrouted as a static asset (404) instead of hitting the API route. Fetch API-route images as a blob in JS (see `FirmsPanel.tsx`) — `fetch()` sends `empty` and works in dev and production.
